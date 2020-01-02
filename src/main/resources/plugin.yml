@@ -1,0 +1,7 @@
+name: Cabinet
+main: com.janboerman.cabinet.CabinetPlugin
+version: ${project.version}
+author: Jannyboy11
+softdepend:
+  - LuckPerms
+  - BungeePerms
