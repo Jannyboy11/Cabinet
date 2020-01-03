@@ -1,6 +1,6 @@
 package com.janboerman.cabinet.plugins.luckperms;
 
-import com.janboerman.cabinet.api.BungeePermission;
+import com.janboerman.cabinet.api.CPermission;
 import com.janboerman.cabinet.api.Permissions;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -61,6 +61,11 @@ public class LuckPermsPermissions implements Permissions {
         return true;
     }
 
+    @Override
+    public boolean hasChatSupport() {
+        return true;
+    }
+
     CompletionStage<User> loadUser(String username) {
         User user = userManager.getUser(username);
         return user != null
@@ -91,7 +96,7 @@ public class LuckPermsPermissions implements Permissions {
         }).asBoolean();
     }
 
-    static boolean hasPermission(PermissionHolder permissionHolder, BungeePermission permission) {
+    static boolean hasPermission(PermissionHolder permissionHolder, CPermission permission) {
         PermissionNode node = toPermissionNode(permission);
         return permissionHolder.data().contains(node, (n1, n2) -> {
             Node against = n1 == node ? n2 : n1;
@@ -130,16 +135,16 @@ public class LuckPermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> hasPermission(UUID player, CPermission permission) {
         return loadUser(player).thenApply(user -> hasPermission(user, permission));
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> hasPermission(String username, CPermission permission) {
         return loadUser(username).thenApply(user -> hasPermission(user, permission));
     }
 
-    static PermissionNode toPermissionNode(BungeePermission permission) {
+    static PermissionNode toPermissionNode(CPermission permission) {
         PermissionNode.Builder builder = PermissionNode.builder();
         builder = builder.permission(permission.getValue());
         builder = builder.value(permission.isPositive());
@@ -159,22 +164,22 @@ public class LuckPermsPermissions implements Permissions {
         return builder.build();
     }
 
-    static boolean addPermission(PermissionHolder permissionHolder, BungeePermission permission) {
+    static boolean addPermission(PermissionHolder permissionHolder, CPermission permission) {
         return permissionHolder.data().add(toPermissionNode(permission)).wasSuccessful();
     }
 
     @Override
     public CompletionStage<Boolean> addPermission(UUID player, String permission) {
-        return addPermission(player, new BungeePermission(permission));
+        return addPermission(player, new CPermission(permission));
     }
 
     @Override
     public CompletionStage<Boolean> addPermission(String username, String permission) {
-        return addPermission(username, new BungeePermission(permission));
+        return addPermission(username, new CPermission(permission));
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> addPermission(UUID player, CPermission permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(addPermission(userManager.getUser(player), permission));
 
@@ -187,7 +192,7 @@ public class LuckPermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> addPermission(String username, CPermission permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(addPermission(userManager.getUser(username), permission));
 
@@ -210,7 +215,7 @@ public class LuckPermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> removePermission(UUID player, CPermission permission) {
         return loadUser(player).thenCompose(user -> {
             boolean result = removePermission(user, permission);
             return userManager.saveUser(user).thenApply(unit -> result);
@@ -218,14 +223,14 @@ public class LuckPermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> removePermission(String username, CPermission permission) {
         return loadUser(username).thenCompose(user -> {
             boolean result = removePermission(user, permission);
             return userManager.saveUser(user).thenApply(unit -> result);
         });
     }
 
-    static boolean removePermission(PermissionHolder permissionHolder, BungeePermission permission) {
+    static boolean removePermission(PermissionHolder permissionHolder, CPermission permission) {
         AtomicBoolean value = new AtomicBoolean(false);
         permissionHolder.data().clear(node -> {
             if (node instanceof PermissionNode) {
@@ -256,5 +261,37 @@ public class LuckPermsPermissions implements Permissions {
             }
         });
         return value.get();
+    }
+
+    //TODO CHAT META!!
+
+    @Override
+    public CompletionStage<String> getPrefix(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getPrefix(String username) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getSuffix(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getSuffix(String username) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getDisplayName(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getDisplayName(String username) {
+        return null;
     }
 }

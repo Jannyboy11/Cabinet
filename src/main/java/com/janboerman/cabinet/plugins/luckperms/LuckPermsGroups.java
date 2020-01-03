@@ -1,8 +1,8 @@
 package com.janboerman.cabinet.plugins.luckperms;
 
-import com.janboerman.cabinet.api.BungeeGroup;
+import com.janboerman.cabinet.api.CGroup;
 import com.janboerman.cabinet.api.Groups;
-import com.janboerman.cabinet.api.BungeePermission;
+import com.janboerman.cabinet.api.CPermission;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.context.DefaultContextKeys;
@@ -14,8 +14,8 @@ import net.luckperms.api.model.user.UserManager;
 import net.luckperms.api.node.Node;
 import net.luckperms.api.node.NodeBuilder;
 import net.luckperms.api.node.NodeType;
-import net.luckperms.api.node.types.InheritanceNode;
-import net.luckperms.api.node.types.WeightNode;
+import net.luckperms.api.node.types.*;
+import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -62,6 +62,11 @@ public class LuckPermsGroups implements Groups {
 
     @Override
     public boolean hasWorldSupport() {
+        return true;
+    }
+
+    @Override
+    public boolean hasChatSupport() {
         return true;
     }
 
@@ -151,23 +156,23 @@ public class LuckPermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Optional<BungeeGroup>> getGroup(String groupName) {
-        return loadGroup(groupName).thenApply(optionalGroup -> optionalGroup.map(LuckPermsGroups::toBungeeGroup));
+    public CompletionStage<Optional<CGroup>> getGroup(String groupName) {
+        return loadGroup(groupName).thenApply(optionalGroup -> optionalGroup.map(LuckPermsGroups::toCGroup));
     }
 
     @Override
-    public CompletionStage<BungeeGroup> createOrUpdateGroup(BungeeGroup bungeeGroup) {
-        CompletionStage<Group> luckPermsGroup = groupManager.createAndLoadGroup(bungeeGroup.getName());
+    public CompletionStage<CGroup> createOrUpdateGroup(CGroup cGroup) {
+        CompletionStage<Group> luckPermsGroup = groupManager.createAndLoadGroup(cGroup.getName());
 
         return luckPermsGroup.thenApply(group -> {
             String name = group.getName();
 
             Node groupNode = group.getNodes().stream().filter(n -> n.getKey().equals("group." + name)).findFirst().get();
 
-            Set<String> servers = bungeeGroup.getServers();
-            Set<String> worlds = bungeeGroup.getWorlds();
-            Instant expire = bungeeGroup.getEndingTimeStamp();
-            OptionalInt weight = bungeeGroup.getWeight();
+            Set<String> servers = cGroup.getServers();
+            Set<String> worlds = cGroup.getWorlds();
+            Instant expire = cGroup.getEndingTimeStamp();
+            OptionalInt weight = cGroup.getWeight();
 
             NodeBuilder builder = groupNode.toBuilder();
             builder = builder.expiry(expire);
@@ -178,15 +183,28 @@ public class LuckPermsGroups implements Groups {
             group.data().add(groupNode, TemporaryNodeMergeStrategy.REPLACE_EXISTING_IF_DURATION_LONGER);
             if (weight.isPresent()) {
                 WeightNode weightNode = WeightNode.builder(weight.getAsInt()).build();
-                group.data().add(weightNode, TemporaryNodeMergeStrategy.REPLACE_EXISTING_IF_DURATION_LONGER);
+                group.data().clear(NodeType.WEIGHT::matches);
+                group.data().add(weightNode);
+            }
+            if (cGroup.hasDisplayName()) {
+                group.data().clear(NodeType.DISPLAY_NAME::matches);
+                group.data().add(DisplayNameNode.builder(cGroup.getDisplayName()).build());
+            }
+            if (cGroup.hasPrefix()) {
+                group.data().clear(NodeType.PREFIX::matches);
+                group.data().add(PrefixNode.builder().prefix(cGroup.getPrefix()).build());
+            }
+            if (cGroup.hasSuffix()) {
+                group.data().clear(NodeType.SUFFIX::matches);
+                group.data().add(SuffixNode.builder().suffix(cGroup.getSuffix()).build());
             }
             groupManager.saveGroup(group);
 
-            return toBungeeGroup(group);
+            return toCGroup(group);
         });
     }
 
-    private static BungeeGroup toBungeeGroup(Group group) {
+    private static CGroup toCGroup(Group group) {
         String name = group.getName();
         Node groupNode = group.getNodes().stream().filter(n -> n.getKey().equals("group."+ name)).findFirst().get();
         Set<String> servers = groupNode.getContexts().getValues(DefaultContextKeys.SERVER_KEY);
@@ -195,8 +213,27 @@ public class LuckPermsGroups implements Groups {
         if (worlds.isEmpty()) worlds = null;
         Instant expiry = groupNode.getExpiry();
         OptionalInt weight = group.getWeight();
+        String displayName = group.getNodes().stream()
+                .filter(NodeType.DISPLAY_NAME::matches)
+                .map(NodeType.DISPLAY_NAME::cast)
+                //cannot sort because DisplayNameNode is not a ChatMetaNode and therefore does not have a priority.
+                .map(DisplayNameNode::getDisplayName)
+                .findFirst()
+                .orElse(null);
+        String prefix = group.getNodes().stream()
+                .filter(NodeType.PREFIX::matches)
+                .map(NodeType.PREFIX::cast)
+                .sorted(Comparator.comparing(ChatMetaNode::getPriority))
+                .map(PrefixNode::getMetaValue)
+                .collect(Collectors.joining(ChatColor.RESET.toString()));
+        String suffix = group.getNodes().stream()
+                .filter(NodeType.SUFFIX::matches)
+                .map(NodeType.SUFFIX::cast)
+                .sorted(Comparator.comparing(ChatMetaNode::getPriority))
+                .map(SuffixNode::getMetaValue)
+                .collect(Collectors.joining(ChatColor.RESET.toString()));
 
-        return new BungeeGroup(name, servers, worlds, expiry, weight);
+        return new CGroup(name, servers, worlds, expiry, weight, displayName, prefix, suffix);
     }
 
     @Override
@@ -212,13 +249,13 @@ public class LuckPermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> addGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> addGroupPermission(String groupName, CPermission... permissions) {
         return loadGroup(groupName).thenCompose(optionalGroup -> {
            if (optionalGroup.isPresent()) {
                Group group = optionalGroup.get();
                boolean result = true;
-               for (BungeePermission bungeePermission : permissions) {
-                   result &= LuckPermsPermissions.addPermission(group, bungeePermission);
+               for (CPermission cPermission : permissions) {
+                   result &= LuckPermsPermissions.addPermission(group, cPermission);
                }
                boolean finalResult = result;
                return groupManager.saveGroup(group).thenApply(v -> finalResult);
@@ -229,13 +266,13 @@ public class LuckPermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> removeGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> removeGroupPermission(String groupName, CPermission... permissions) {
         return loadGroup(groupName).thenCompose(optionalGroup -> {
             if (optionalGroup.isPresent()) {
                 Group group = optionalGroup.get();
                 boolean result = true;
-                for (BungeePermission bungeePermission : permissions) {
-                    result &= LuckPermsPermissions.removePermission(group, bungeePermission);
+                for (CPermission cPermission : permissions) {
+                    result &= LuckPermsPermissions.removePermission(group, cPermission);
                 }
                 boolean finalResult = result;
                 return groupManager.saveGroup(group).thenApply(v -> finalResult);
@@ -246,13 +283,13 @@ public class LuckPermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> hasGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> hasGroupPermission(String groupName, CPermission... permissions) {
         return loadGroup(groupName).thenApply(optionalGroup -> {
             if (optionalGroup.isPresent()) {
                 Group group = optionalGroup.get();
                 boolean result = true;
-                for (BungeePermission bungeePermission : permissions) {
-                    result &= LuckPermsPermissions.hasPermission(group, bungeePermission);
+                for (CPermission cPermission : permissions) {
+                    result &= LuckPermsPermissions.hasPermission(group, cPermission);
                 }
                 return result;
             } else {

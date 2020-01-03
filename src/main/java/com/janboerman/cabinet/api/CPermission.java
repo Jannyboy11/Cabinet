@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
-public final class BungeePermission {
+public final class CPermission {
 
     private final String value;
     private final boolean positive;
@@ -13,31 +13,31 @@ public final class BungeePermission {
     private final Set<String> servers;
     private final Set<String> worlds;
 
-    public BungeePermission(String value) {
+    public CPermission(String value) {
         this(value, true, null);
     }
 
-    public BungeePermission(String value, boolean positive) {
+    public CPermission(String value, boolean positive) {
         this(value, positive, null);
     }
 
-    public BungeePermission(String value, Instant endingTimestamp) {
+    public CPermission(String value, Instant endingTimestamp) {
         this(value, true, endingTimestamp);
     }
 
-    public BungeePermission(String value, boolean positive, Instant endingTimestamp) {
+    public CPermission(String value, boolean positive, Instant endingTimestamp) {
         this(value, positive, endingTimestamp, null, null);
     }
 
-    public BungeePermission(String value, Set<String> servers, Set<String> worlds) {
+    public CPermission(String value, Set<String> servers, Set<String> worlds) {
         this(value, true, null, servers, worlds);
     }
 
-    public BungeePermission(String value, boolean positive, Set<String> servers, Set<String> worlds) {
+    public CPermission(String value, boolean positive, Set<String> servers, Set<String> worlds) {
         this(value, positive, null, servers, worlds);
     }
 
-    public BungeePermission(String value, boolean positive, Instant endingTimestamp, Set<String> servers, Set<String> worlds) {
+    public CPermission(String value, boolean positive, Instant endingTimestamp, Set<String> servers, Set<String> worlds) {
         this.value = value;
         this.positive = positive;
         this.endingTimeStamp = endingTimestamp;
@@ -80,9 +80,9 @@ public final class BungeePermission {
     @Override
     public boolean equals(Object o) {
         if (o == this) return true;
-        if (!(o instanceof BungeePermission)) return false;
+        if (!(o instanceof CPermission)) return false;
 
-        BungeePermission that = (BungeePermission) o;
+        CPermission that = (CPermission) o;
         return Objects.equals(this.getValue(), that.getValue())
                 && (this.isPositive() == that.isPositive())
                 && (!(this.hasDuration() && that.hasDuration()) || Objects.equals(this.getEndingTimeStamp(), that.getEndingTimeStamp()))

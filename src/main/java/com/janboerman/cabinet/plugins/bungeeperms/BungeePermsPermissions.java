@@ -1,6 +1,6 @@
 package com.janboerman.cabinet.plugins.bungeeperms;
 
-import com.janboerman.cabinet.api.BungeePermission;
+import com.janboerman.cabinet.api.CPermission;
 import com.janboerman.cabinet.api.Permissions;
 import com.janboerman.cabinet.util.Executors;
 import net.alpenblock.bungeeperms.BungeePerms;
@@ -52,6 +52,12 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
+    public boolean hasChatSupport() {
+        //just default to primary group
+        return true;
+    }
+
+    @Override
     public void onDisable() {
     }
 
@@ -72,7 +78,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> hasPermission(UUID player, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.isServerSpecific()) {
@@ -94,7 +100,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> hasPermission(String username, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.isServerSpecific()) {
@@ -126,7 +132,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> addPermission(UUID player, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.hasDuration()) {
@@ -166,7 +172,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> addPermission(String username, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.hasDuration()) {
@@ -216,7 +222,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(UUID player, BungeePermission permission) {
+    public CompletionStage<Boolean> removePermission(UUID player, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.hasDuration()) {
@@ -253,7 +259,7 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(String username, BungeePermission permission) {
+    public CompletionStage<Boolean> removePermission(String username, CPermission permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (permission.hasDuration()) {
@@ -287,6 +293,38 @@ public class BungeePermsPermissions implements Permissions {
             }
             return result;
         }, executor);
+    }
+
+    //TODO chat meta!
+
+    @Override
+    public CompletionStage<String> getPrefix(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getPrefix(String username) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getSuffix(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getSuffix(String username) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getDisplayName(UUID player) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<String> getDisplayName(String username) {
+        return null;
     }
 
 }

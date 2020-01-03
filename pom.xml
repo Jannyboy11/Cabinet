@@ -6,7 +6,7 @@
 
     <groupId>com.janboerman</groupId>
     <artifactId>Cabinet</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
 
     <build>
         <resources>

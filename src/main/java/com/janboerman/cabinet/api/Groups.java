@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 
 //TODO ladder/track support? both LuckPerms and BungeePerms support it
+//TODO inheritances support? both LuckPerms and BungeePerms support it
 
 public interface Groups {
 
@@ -15,6 +16,7 @@ public interface Groups {
 
     public boolean hasServerSupport();
     public boolean hasWorldSupport();
+    public boolean hasChatSupport();
 
     public CompletionStage<Boolean> isMember(UUID player, String groupName);
     public CompletionStage<Boolean> isMember(String username, String groupName);
@@ -28,15 +30,14 @@ public interface Groups {
     public CompletionStage<Collection<String>> getGroups(UUID player);
     public CompletionStage<Collection<String>> getGroups(String username);
 
-    public CompletionStage<Optional<BungeeGroup>> getGroup(String groupName);
+    public CompletionStage<Optional<CGroup>> getGroup(String groupName);
 
-    public CompletionStage<BungeeGroup> createOrUpdateGroup(BungeeGroup group);
+    public CompletionStage<CGroup> createOrUpdateGroup(CGroup group);
     public CompletionStage<Boolean> removeGroup(String groupName);
 
-    public CompletionStage<Boolean> addGroupPermission(String groupName, BungeePermission... permissions);
-    public CompletionStage<Boolean> removeGroupPermission(String groupName, BungeePermission... permissions);
-    public CompletionStage<Boolean> hasGroupPermission(String groupName, BungeePermission... permissions);
-
-    //TODO group- prefix, suffix, displayName in separate Chat api?
+    //TODO overloads with normal permission strings
+    public CompletionStage<Boolean> addGroupPermission(String groupName, CPermission... permissions);
+    public CompletionStage<Boolean> removeGroupPermission(String groupName, CPermission... permissions);
+    public CompletionStage<Boolean> hasGroupPermission(String groupName, CPermission... permissions);
 
 }

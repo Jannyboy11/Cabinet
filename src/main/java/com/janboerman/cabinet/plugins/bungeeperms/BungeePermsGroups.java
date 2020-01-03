@@ -1,7 +1,7 @@
 package com.janboerman.cabinet.plugins.bungeeperms;
 
-import com.janboerman.cabinet.api.BungeeGroup;
-import com.janboerman.cabinet.api.BungeePermission;
+import com.janboerman.cabinet.api.CGroup;
+import com.janboerman.cabinet.api.CPermission;
 import com.janboerman.cabinet.api.Groups;
 import com.janboerman.cabinet.util.Executors;
 import net.alpenblock.bungeeperms.*;
@@ -56,6 +56,11 @@ public class BungeePermsGroups implements Groups {
 
     @Override
     public boolean hasWorldSupport() {
+        return true;
+    }
+
+    @Override
+    public boolean hasChatSupport() {
         return true;
     }
 
@@ -147,34 +152,40 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Optional<BungeeGroup>> getGroup(String groupName) {
+    public CompletionStage<Optional<CGroup>> getGroup(String groupName) {
         return CompletableFuture.supplyAsync(() -> {
             Group group = permissionsManager.getGroup(groupName);
             if (group == null) {
                 return Optional.empty();
             } else {
-                return Optional.of(toBungeeGroup(group));
+                return Optional.of(toCGroup(group));
             }
         }, executor);
     }
 
-    private static BungeeGroup toBungeeGroup(Group group) {
+    private static CGroup toCGroup(Group group) {
         String name = group.getName();
         Instant endingTime = null; //bungeeperms does not support timed groups! but it does support timed inheritance. (as does luckperms)
         Set<String> servers = group.getServers().keySet();
         Set<String> worlds = group.getServers().values().stream().flatMap(server -> server.getWorlds().keySet().stream()).collect(Collectors.toSet());
         OptionalInt weight = OptionalInt.of(group.getWeight());
-        return new BungeeGroup(name, servers, worlds, endingTime, weight);
+        String displayName = group.getDisplay();
+        String prefix = group.getPrefix();
+        String suffix = group.getSuffix();
+        return new CGroup(name, servers, worlds, endingTime, weight, displayName, prefix, suffix);
     }
 
     @Override
-    public CompletionStage<BungeeGroup> createOrUpdateGroup(BungeeGroup group) {
+    public CompletionStage<CGroup> createOrUpdateGroup(CGroup group) {
         return CompletableFuture.supplyAsync(() -> {
             Consumer<Group> consumer = bpGroup -> {
                 bpGroup.setWeight(group.getWeight().orElse(0));
                 bpGroup.setServers(group.getServers().stream().collect(Collectors.toMap(Function.identity(), bpGroup::getServer)));
                 bpGroup.getServers().values().forEach(server -> server.setWorlds(group.getWorlds().stream().collect(Collectors.toMap(Function.identity(), server::getWorld))));
                 //can't set expire timestamp... :(
+                bpGroup.setPrefix(group.getPrefix());
+                bpGroup.setSuffix(group.getSuffix());
+                bpGroup.setDisplay(group.getDisplayName());
             };
 
             Optional<Group> optionalGroup = permissionsManager.getGroups().stream().filter(g -> g.getName().equals(group.getName())).findFirst();
@@ -182,6 +193,7 @@ public class BungeePermsGroups implements Groups {
                 Group bpGroup = optionalGroup.get();
                 consumer.accept(bpGroup);
             } else {
+                //defaults copied from CommandHandler#handleGroupCommandsCreate
                 Group bpGroup = new Group(
                         group.getName(),    //name
                         new ArrayList<>(),  //inheritances
@@ -189,13 +201,13 @@ public class BungeePermsGroups implements Groups {
                         new ArrayList<>(),  //permissions
                         new ArrayList<>(),  //timed permissions
                         new HashMap<>(),    //servers
-                        0,              //rank
-                        0,              //weight
-                        null,           //ladder
-                        false,          //isDefault
-                        group.getName(),        //display name
-                        "",             //prefix
-                        "");            //suffix
+                        1000,           //rank
+                        1000,         //weight
+                        "default",    //ladder
+                        false,      //isDefault
+                        null,        //display name
+                        null,         //prefix
+                        null);        //suffix
                 consumer.accept(bpGroup);
                 permissionsManager.addGroup(bpGroup);
             }
@@ -218,10 +230,10 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> addGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> addGroupPermission(String groupName, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            for (BungeePermission permission : permissions) {
+            for (CPermission permission : permissions) {
                 if (permission.hasDuration()) {
                     long now = System.currentTimeMillis();
                     int durationSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
@@ -260,10 +272,10 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> removeGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> removeGroupPermission(String groupName, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            for (BungeePermission permission : permissions) {
+            for (CPermission permission : permissions) {
                 if (permission.hasDuration()) {
                     if (permission.isServerSpecific()) {
                         for (String server : permission.getServers()) {
@@ -299,10 +311,10 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> hasGroupPermission(String groupName, BungeePermission... permissions) {
+    public CompletionStage<Boolean> hasGroupPermission(String groupName, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = false;
-            for (BungeePermission permission : permissions) {
+            for (CPermission permission : permissions) {
                 //ignore duration
                 if (permission.isServerSpecific()) {
                     for (String server : permission.getServers()) {
