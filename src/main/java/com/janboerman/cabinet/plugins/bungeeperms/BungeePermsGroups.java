@@ -1,8 +1,10 @@
 package com.janboerman.cabinet.plugins.bungeeperms;
 
+import com.janboerman.cabinet.api.CContext;
 import com.janboerman.cabinet.api.CGroup;
 import com.janboerman.cabinet.api.CPermission;
 import com.janboerman.cabinet.api.Groups;
+import com.janboerman.cabinet.plugins.PluginGroups;
 import com.janboerman.cabinet.util.Executors;
 import net.alpenblock.bungeeperms.*;
 import net.md_5.bungee.api.ProxyServer;
@@ -18,35 +20,21 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class BungeePermsGroups implements Groups {
+public class BungeePermsGroups extends PluginGroups {
 
-    private final ProxyServer proxyServer;
     private BungeePerms bungeePerms;
     private Executor executor;
     private PermissionsManager permissionsManager;
 
     public BungeePermsGroups(ProxyServer proxyServer) {
-        this.proxyServer = proxyServer;
+        super("BungeePerms", proxyServer);
     }
 
     @Override
-    public String getName() {
-        return "BungeePermsGroups";
-    }
-
-    @Override
-    public boolean tryInitialise() {
-        Plugin plugin = proxyServer.getPluginManager().getPlugin("BungeePerms");
-        if (plugin != null) {
-            bungeePerms = BungeePerms.getInstance();
-            permissionsManager = bungeePerms.getPermissionsManager();
-            executor = Executors.asyncExecutor(plugin);
-        }
-        return plugin != null;
-    }
-
-    @Override
-    public void onDisable() {
+    public void initialise() {
+        bungeePerms = BungeePerms.getInstance();
+        permissionsManager = bungeePerms.getPermissionsManager();
+        executor = Executors.asyncExecutor(getPlugin());
     }
 
     @Override
@@ -66,34 +54,42 @@ public class BungeePermsGroups implements Groups {
 
     @Override
     public CompletionStage<Boolean> isMember(UUID player, String groupName) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().contains(groupName));
-
         return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userInGroup(player.toString(), groupName), executor);
     }
 
     @Override
     public CompletionStage<Boolean> isMember(String username, String groupName) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().contains(groupName));
-
         return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userInGroup(username, groupName), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrimaryGroup(UUID player) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().stream().findFirst());
+    public CompletionStage<Boolean> isMember(UUID player, CContext context, String groupName) {
+        if (context.isGlobal()) {
+            return isMember(player, groupName);
+        } else {
+            //BungeePerms api does not support context sensitive group memberships!
+            return CompletableFuture.completedFuture(false);
+        }
+    }
 
+    @Override
+    public CompletionStage<Boolean> isMember(String username, CContext context, String groupName) {
+        if (context.isGlobal()) {
+            return isMember(username, groupName);
+        } else {
+            //BungeePerms api does not support context sensitive group memberships!
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getPrimaryGroup(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userMainGroup(player.toString())), executor);
         //return CompletableFuture.supplyAsync(() -> permissionsManager.getUser(player, true), executor).thenApply(BungeePermsGroups::getPrimaryGroup);
     }
 
     @Override
     public CompletionStage<Optional<String>> getPrimaryGroup(String username) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().stream().findFirst());
-
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userMainGroup(username)), executor);
         //return CompletableFuture.supplyAsync(() -> permissionsManager.getUser(username, true), executor).thenApply(BungeePermsGroups::getPrimaryGroup);
     }
@@ -135,20 +131,57 @@ public class BungeePermsGroups implements Groups {
         return result;
     }
 
-    @Override
-    public CompletionStage<Collection<String>> getGroups(UUID player) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups());
-
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAllGroups(player.toString()), executor);
+    private static void includeParentGroups(Set<Group> groups) {
+        Set<Group> parentGroups = groups.stream().flatMap(group -> group.getInheritances().stream()).collect(Collectors.toSet());
+        while (groups.addAll(parentGroups)) {
+            parentGroups = parentGroups.stream().flatMap(group -> group.getInheritances().stream()).collect(Collectors.toSet());
+        }
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(String username) {
-        ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
-        if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups());
+    public CompletionStage<Collection<String>> getGroups(UUID player, boolean includeParentGroups) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> directGroups = BungeePermsAPI.userAllGroups(player.toString());
+            if (includeParentGroups) {
+                Set<Group> groups = directGroups.stream().map(permissionsManager::getGroup).collect(Collectors.toSet());
+                includeParentGroups(groups);
+                return groups.stream().map(Group::getName).collect(Collectors.toList());
+            } else {
+                return directGroups;
+            }
+        }, executor);
+    }
 
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAllGroups(username), executor);
+    @Override
+    public CompletionStage<Collection<String>> getGroups(String username, boolean includeParentGroups) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> directGroups = BungeePermsAPI.userAllGroups(username);
+            if (includeParentGroups) {
+                Set<Group> groups = directGroups.stream().map(permissionsManager::getGroup).collect(Collectors.toSet());
+                includeParentGroups(groups);
+                return groups.stream().map(Group::getName).collect(Collectors.toList());
+            } else {
+                return directGroups;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Collection<String>> getGroups(UUID player, CContext context, boolean includeParentGroups) {
+        if (context.isGlobal()) {
+            return getGroups(player, includeParentGroups);
+        } else {
+            return CompletableFuture.completedFuture(Collections.emptySet());
+        }
+    }
+
+    @Override
+    public CompletionStage<Collection<String>> getGroups(String username, CContext context, boolean includeParentGroups) {
+        if (context.isGlobal()) {
+            return getGroups(username, includeParentGroups);
+        } else {
+            return CompletableFuture.completedFuture(Collections.emptySet());
+        }
     }
 
     @Override
@@ -165,14 +198,11 @@ public class BungeePermsGroups implements Groups {
 
     private static CGroup toCGroup(Group group) {
         String name = group.getName();
-        Instant endingTime = null; //bungeeperms does not support timed groups! but it does support timed inheritance. (as does luckperms)
-        Set<String> servers = group.getServers().keySet();
-        Set<String> worlds = group.getServers().values().stream().flatMap(server -> server.getWorlds().keySet().stream()).collect(Collectors.toSet());
         OptionalInt weight = OptionalInt.of(group.getWeight());
         String displayName = group.getDisplay();
         String prefix = group.getPrefix();
         String suffix = group.getSuffix();
-        return new CGroup(name, servers, worlds, endingTime, weight, displayName, prefix, suffix);
+        return new CGroup(name, weight, displayName, prefix, suffix);
     }
 
     @Override
@@ -180,9 +210,6 @@ public class BungeePermsGroups implements Groups {
         return CompletableFuture.supplyAsync(() -> {
             Consumer<Group> consumer = bpGroup -> {
                 bpGroup.setWeight(group.getWeight().orElse(0));
-                bpGroup.setServers(group.getServers().stream().collect(Collectors.toMap(Function.identity(), bpGroup::getServer)));
-                bpGroup.getServers().values().forEach(server -> server.setWorlds(group.getWorlds().stream().collect(Collectors.toMap(Function.identity(), server::getWorld))));
-                //can't set expire timestamp... :(
                 bpGroup.setPrefix(group.getPrefix());
                 bpGroup.setSuffix(group.getSuffix());
                 bpGroup.setDisplay(group.getDisplayName());
@@ -230,7 +257,7 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> addGroupPermission(String groupName, CPermission... permissions) {
+    public CompletionStage<Boolean> groupAddPermission(String groupName, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -238,32 +265,32 @@ public class BungeePermsGroups implements Groups {
                     long now = System.currentTimeMillis();
                     int durationSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
 
-                    if (permission.isServerSpecific()) {
-                        for (String server : permission.getServers()) {
-                            if (permission.isWorldSpecific()) {
-                                for (String world : permission.getWorlds()) {
-                                    result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getValue(), server, world, new Date(now), durationSeconds);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getPermission(), server, world, new Date(now), durationSeconds);
                                 }
                             } else {
-                                result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getValue(), server, null, new Date(now), durationSeconds);
+                                result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getPermission(), server, null, new Date(now), durationSeconds);
                             }
                         }
                     } else {
-                        result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getValue(), null, null, new Date(now), durationSeconds);
+                        result &= BungeePermsAPI.groupTimedAdd(groupName, permission.getPermission(), null, null, new Date(now), durationSeconds);
                     }
                 } else {
-                    if (permission.isServerSpecific()) {
-                        for (String server : permission.getServers()) {
-                            if (permission.isWorldSpecific()) {
-                                for (String world : permission.getWorlds()) {
-                                    result &= BungeePermsAPI.groupAdd(groupName, permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.groupAdd(groupName, permission.getPermission(), server, world);
                                 }
                             } else {
-                                result &= BungeePermsAPI.groupAdd(groupName, permission.getValue(), server, null);
+                                result &= BungeePermsAPI.groupAdd(groupName, permission.getPermission(), server, null);
                             }
                         }
                     } else {
-                        result &= BungeePermsAPI.groupAdd(groupName, permission.getValue(), null, null);
+                        result &= BungeePermsAPI.groupAdd(groupName, permission.getPermission(), null, null);
                     }
                 }
             }
@@ -272,37 +299,37 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> removeGroupPermission(String groupName, CPermission... permissions) {
+    public CompletionStage<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
                 if (permission.hasDuration()) {
-                    if (permission.isServerSpecific()) {
-                        for (String server : permission.getServers()) {
-                            if (permission.isWorldSpecific()) {
-                                for (String world : permission.getWorlds()) {
-                                    result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getPermission(), server, world);
                                 }
                             } else {
-                                result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getValue(), server, null);
+                                result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getPermission(), server, null);
                             }
                         }
                     } else {
-                        result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getValue(), null, null);
+                        result &= BungeePermsAPI.groupTimedRemove(groupName, permission.getPermission(), null, null);
                     }
                 } else {
-                    if (permission.isServerSpecific()) {
-                        for (String server : permission.getServers()) {
-                            if (permission.isWorldSpecific()) {
-                                for (String world : permission.getWorlds()) {
-                                    result &= BungeePermsAPI.groupRemove(groupName, permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.groupRemove(groupName, permission.getPermission(), server, world);
                                 }
                             } else {
-                                result &= BungeePermsAPI.groupRemove(groupName, permission.getValue(), server, null);
+                                result &= BungeePermsAPI.groupRemove(groupName, permission.getPermission(), server, null);
                             }
                         }
                     } else {
-                        result &= BungeePermsAPI.groupRemove(groupName, permission.getValue(), null, null);
+                        result &= BungeePermsAPI.groupRemove(groupName, permission.getPermission(), null, null);
                     }
                 }
             }
@@ -311,23 +338,23 @@ public class BungeePermsGroups implements Groups {
     }
 
     @Override
-    public CompletionStage<Boolean> hasGroupPermission(String groupName, CPermission... permissions) {
+    public CompletionStage<Boolean> groupHasPermission(String groupName, CContext context, String... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = false;
-            for (CPermission permission : permissions) {
+            for (String permission : permissions) {
                 //ignore duration
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.groupHas(groupName, permission.getValue(), server, world);
+                if (context.isServerSensitive()) {
+                    for (String server : context.getServers()) {
+                        if (context.isWorldSensitive()) {
+                            for (String world : context.getWorlds()) {
+                                result &= BungeePermsAPI.groupHas(groupName, permission, server, world);
                             }
                         } else {
-                            result &= BungeePermsAPI.groupHas(groupName, permission.getValue(), server, null);
+                            result &= BungeePermsAPI.groupHas(groupName, permission, server, null);
                         }
                     }
                 } else {
-                    result &= BungeePermsAPI.groupHas(groupName, permission.getValue(), null, null);
+                    result &= BungeePermsAPI.groupHas(groupName, permission, null, null);
                 }
             }
             return result;

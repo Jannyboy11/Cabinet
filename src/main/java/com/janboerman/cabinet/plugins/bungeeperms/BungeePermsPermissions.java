@@ -1,44 +1,41 @@
 package com.janboerman.cabinet.plugins.bungeeperms;
 
+import com.janboerman.cabinet.api.CContext;
 import com.janboerman.cabinet.api.CPermission;
-import com.janboerman.cabinet.api.Permissions;
+import com.janboerman.cabinet.api.ChatSupport;
+import com.janboerman.cabinet.plugins.PluginPermissions;
 import com.janboerman.cabinet.util.Executors;
-import net.alpenblock.bungeeperms.BungeePerms;
-import net.alpenblock.bungeeperms.BungeePermsAPI;
+import net.alpenblock.bungeeperms.*;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Plugin;
 
-import java.util.Date;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
-public class BungeePermsPermissions implements Permissions {
+public class BungeePermsPermissions extends PluginPermissions {
 
-    private final ProxyServer proxyServer;
-    private Plugin plugin;
     private BungeePerms bungeePerms;
+    private PermissionsManager permissionsManager;
     private Executor executor;
 
     public BungeePermsPermissions(ProxyServer proxyServer) {
-        this.proxyServer = proxyServer;
+        super("BungeePerms", proxyServer);
     }
 
     @Override
-    public String getName() {
-        return "BungeePermsPermissions";
+    public void initialise() {
+        bungeePerms = BungeePerms.getInstance();
+        permissionsManager = bungeePerms.getPermissionsManager();
+        executor = Executors.asyncExecutor(getPlugin());
     }
 
-    @Override
-    public boolean tryInitialise() {
-        plugin = proxyServer.getPluginManager().getPlugin("BungeePerms");
-        if (plugin != null) {
-            bungeePerms = BungeePerms.getInstance();
-            executor = Executors.asyncExecutor(plugin);
-        }
-        return plugin != null;
+    private void saveUser(User user) {
+        permissionsManager.getBackEnd().saveUser(user, true);
+        bungeePerms.getNetworkNotifier().reloadUser(user, null);
+        bungeePerms.getEventDispatcher().dispatchUserChangeEvent(user);
     }
 
     @Override
@@ -52,9 +49,8 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public boolean hasChatSupport() {
-        //just default to primary group
-        return true;
+    public ChatSupport hasChatSupport() {
+        return ChatSupport.READ_WRITE;
     }
 
     @Override
@@ -78,93 +74,85 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(UUID player, CPermission permission) {
+    public CompletionStage<Boolean> hasPermission(UUID player, CContext context, String permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.isServerSpecific()) {
-                for (String server : permission.getServers()) {
-                    if (permission.isWorldSpecific()) {
-                        for (String world : permission.getWorlds()) {
-                            result &= BungeePermsAPI.userHasPermission(player.toString(), permission.getValue(), server, world);
+            if (context.isServerSensitive()) {
+                for (String server : context.getServers()) {
+                    if (context.isWorldSensitive()) {
+                        for (String world : context.getWorlds()) {
+                            result &= BungeePermsAPI.userHasPermission(player.toString(), permission, server, world);
                         }
                     } else {
-                        result &= BungeePermsAPI.userHasPermission(player.toString(), permission.getValue(), server, null);
+                        result &= BungeePermsAPI.userHasPermission(player.toString(), permission, server, null);
                     }
                 }
             } else {
                 //bungeeperms does not support server-unspecific, world-specific permissions
-                result &= BungeePermsAPI.userHasPermission(player.toString(), permission.getValue(), null, null);
+                result &= BungeePermsAPI.userHasPermission(player.toString(), permission, null, null);
             }
             return result;
         }, executor);
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(String username, CPermission permission) {
+    public CompletionStage<Boolean> hasPermission(String username, CContext context, String permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.isServerSpecific()) {
-                for (String server : permission.getServers()) {
-                    if (permission.isWorldSpecific()) {
-                        for (String world : permission.getWorlds()) {
-                            result &= BungeePermsAPI.userHasPermission(username, permission.getValue(), server, world);
+            if (context.isServerSensitive()) {
+                for (String server : context.getServers()) {
+                    if (context.isWorldSensitive()) {
+                        for (String world : context.getWorlds()) {
+                            result &= BungeePermsAPI.userHasPermission(username, permission, server, world);
                         }
                     } else {
-                        result &= BungeePermsAPI.userHasPermission(username, permission.getValue(), server, null);
+                        result &= BungeePermsAPI.userHasPermission(username, permission, server, null);
                     }
                 }
             } else {
                 //bungeeperms does not support server-unspecific, world-specific permissions
-                result &= BungeePermsAPI.userHasPermission(username, permission.getValue(), null, null);
+                result &= BungeePermsAPI.userHasPermission(username, permission, null, null);
             }
             return result;
         }, executor);
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(UUID player, String permission) {
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAdd(player.toString(), permission, null, null), executor);
-    }
-
-    @Override
-    public CompletionStage<Boolean> addPermission(String username, String permission) {
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAdd(username, permission, null, null), executor);
-    }
-
-    @Override
-    public CompletionStage<Boolean> addPermission(UUID player, CPermission permission) {
+    public CompletionStage<Boolean> addPermission(UUID player, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.hasDuration()) {
-                long now = System.currentTimeMillis();
-                int timeDifferenceSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
+            for (CPermission permission : permissions) {
+                if (permission.hasDuration()) {
+                    long now = System.currentTimeMillis();
+                    int timeDifferenceSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
 
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getValue(), server, world, new Date(now), timeDifferenceSeconds);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getPermission(), server, world, new Date(now), timeDifferenceSeconds);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getPermission(), server, null, new Date(now), timeDifferenceSeconds);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getValue(), server, null, new Date(now), timeDifferenceSeconds);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getPermission(), null, null, new Date(now), timeDifferenceSeconds);
                     }
                 } else {
-                    result &= BungeePermsAPI.userTimedAdd(player.toString(), permission.getValue(), null, null, new Date(now), timeDifferenceSeconds);
-                }
-            } else {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userAdd(player.toString(), permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userAdd(player.toString(), permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userAdd(player.toString(), permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userAdd(player.toString(), permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userAdd(player.toString(), permission.getPermission(), null, null);
                     }
-                } else {
-                    result &= BungeePermsAPI.userAdd(player.toString(), permission.getValue(), null, null);
                 }
             }
             return result;
@@ -172,39 +160,41 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(String username, CPermission permission) {
+    public CompletionStage<Boolean> addPermission(String username, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.hasDuration()) {
-                long now = System.currentTimeMillis();
-                int timeDifferenceSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
+            for (CPermission permission : permissions) {
+                if (permission.hasDuration()) {
+                    long now = System.currentTimeMillis();
+                    int timeDifferenceSeconds = (int) ((permission.getEndingTimeStamp().toEpochMilli() - now) / 1000);
 
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userTimedAdd(username, permission.getValue(), server, world, new Date(now), timeDifferenceSeconds);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userTimedAdd(username, permission.getPermission(), server, world, new Date(now), timeDifferenceSeconds);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userTimedAdd(username, permission.getPermission(), server, null, new Date(now), timeDifferenceSeconds);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userTimedAdd(username, permission.getValue(), server, null, new Date(now), timeDifferenceSeconds);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userTimedAdd(username, permission.getPermission(), null, null, new Date(now), timeDifferenceSeconds);
                     }
                 } else {
-                    result &= BungeePermsAPI.userTimedAdd(username, permission.getValue(), null, null, new Date(now), timeDifferenceSeconds);
-                }
-            } else {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userAdd(username, permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userAdd(username, permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userAdd(username, permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userAdd(username, permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userAdd(username, permission.getPermission(), null, null);
                     }
-                } else {
-                    result &= BungeePermsAPI.userAdd(username, permission.getValue(), null, null);
                 }
             }
             return result;
@@ -212,46 +202,38 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(UUID player, String permission) {
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userRemove(player.toString(), permission, null, null), executor);
-    }
-
-    @Override
-    public CompletionStage<Boolean> removePermission(String username, String permission) {
-        return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userRemove(username, permission, null, null), executor);
-    }
-
-    @Override
-    public CompletionStage<Boolean> removePermission(UUID player, CPermission permission) {
+    public CompletionStage<Boolean> removePermission(UUID player, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.hasDuration()) {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getValue(), server, world);
+            for (CPermission permission : permissions) {
+                if (permission.hasDuration()) {
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getPermission(), null, null);
                     }
                 } else {
-                    result &= BungeePermsAPI.userTimedRemove(player.toString(), permission.getValue(), null, null);
-                }
-            } else {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userRemove(player.toString(), permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userRemove(player.toString(), permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userRemove(player.toString(), permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userRemove(player.toString(), permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userRemove(player.toString(), permission.getPermission(), null, null);
                     }
-                } else {
-                    result &= BungeePermsAPI.userRemove(player.toString(), permission.getValue(), null, null);
                 }
             }
             return result;
@@ -259,72 +241,314 @@ public class BungeePermsPermissions implements Permissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(String username, CPermission permission) {
+    public CompletionStage<Boolean> removePermission(String username, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
-            if (permission.hasDuration()) {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userTimedRemove(username, permission.getValue(), server, world);
+            for (CPermission permission : permissions) {
+                if (permission.hasDuration()) {
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userTimedRemove(username, permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userTimedRemove(username, permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userTimedRemove(username, permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userTimedRemove(username, permission.getPermission(), null, null);
                     }
                 } else {
-                    result &= BungeePermsAPI.userTimedRemove(username, permission.getValue(), null, null);
-                }
-            } else {
-                if (permission.isServerSpecific()) {
-                    for (String server : permission.getServers()) {
-                        if (permission.isWorldSpecific()) {
-                            for (String world : permission.getWorlds()) {
-                                result &= BungeePermsAPI.userRemove(username, permission.getValue(), server, world);
+                    if (context.isServerSensitive()) {
+                        for (String server : context.getServers()) {
+                            if (context.isWorldSensitive()) {
+                                for (String world : context.getWorlds()) {
+                                    result &= BungeePermsAPI.userRemove(username, permission.getPermission(), server, world);
+                                }
+                            } else {
+                                result &= BungeePermsAPI.userRemove(username, permission.getPermission(), server, null);
                             }
-                        } else {
-                            result &= BungeePermsAPI.userRemove(username, permission.getValue(), server, null);
                         }
+                    } else {
+                        result &= BungeePermsAPI.userRemove(username, permission.getPermission(), null, null);
                     }
-                } else {
-                    result &= BungeePermsAPI.userRemove(username, permission.getValue(), null, null);
                 }
             }
             return result;
         }, executor);
     }
 
-    //TODO chat meta!
-
     @Override
-    public CompletionStage<String> getPrefix(UUID player) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixGlobal(UUID player) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), null, null)), executor);
     }
 
     @Override
-    public CompletionStage<String> getPrefix(String username) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixGlobal(String userName) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, null, null)), executor);
     }
 
     @Override
-    public CompletionStage<String> getSuffix(UUID player) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixOnServer(UUID player, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), server, null)), executor);
     }
 
     @Override
-    public CompletionStage<String> getSuffix(String username) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixOnServer(String userName, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, server, null)), executor);
     }
 
     @Override
-    public CompletionStage<String> getDisplayName(UUID player) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixOnWorld(UUID player, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), server, world)), executor);
     }
 
     @Override
-    public CompletionStage<String> getDisplayName(String username) {
-        return null;
+    public CompletionStage<Optional<String>> getPrefixOnWorld(String userName, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, server, world)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixGlobal(UUID player) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), null, null)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixGlobal(String userName) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, null, null)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixOnServer(UUID player, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), server, null)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixOnServer(String userName, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, null)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixOnWorld(UUID player, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), server, world)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, world)), executor);
+    }
+
+    private boolean setPrefix(User user, CContext context, String prefix) {
+        if (context.isGlobal()) {
+            permissionsManager.setUserPrefix(user, prefix, null, null);
+            return true;
+        } else if (context.isServerSensitive()) {
+            for (String server : context.getServers()) {
+                if (context.isWorldSensitive()) {
+                    for (String world : context.getWorlds()) {
+                        permissionsManager.setUserPrefix(user, prefix, server, world);
+                    }
+                } else {
+                    permissionsManager.setUserPrefix(user, prefix, server, null);
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public CompletionStage<Boolean> setPrefix(UUID player, CContext where, String prefix, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                return setPrefix(user, where, prefix);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> setPrefix(String userName, CContext where, String prefix, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                return setPrefix(user, where, prefix);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    private boolean setSuffix(User user, CContext context, String prefix) {
+        if (context.isGlobal()) {
+            permissionsManager.setUserSuffix(user, prefix, null, null);
+            return true;
+        } else if (context.isServerSensitive()) {
+            for (String server : context.getServers()) {
+                if (context.isWorldSensitive()) {
+                    for (String world : context.getWorlds()) {
+                        permissionsManager.setUserSuffix(user, prefix, server, world);
+                    }
+                } else {
+                    permissionsManager.setUserSuffix(user, prefix, server, null);
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String prefix, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                return setSuffix(user, where, prefix);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String prefix, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                return setSuffix(user, where, prefix);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removePrefix(UUID player, CContext where) {
+        return setPrefix(player, where, null, 0);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removePrefix(String userName, CContext where) {
+        return setPrefix(userName, where, null, 0);
+    }
+
+    private boolean removePrefixes(User user, CContext where, String prefix) {
+        boolean equal = false;
+        if (where.isGlobal()) {
+            equal = Objects.equals(user.getPrefix(), prefix);
+            if (equal) user.setPrefix(null);
+        } else if (where.isServerSensitive()) {
+            for (Map.Entry<String, Server> serverEntry : user.getServers().entrySet()) {
+                Server server = serverEntry.getValue();
+                if (where.isWorldSensitive()) {
+                    for (Map.Entry<String, World> worldEntry : server.getWorlds().entrySet()) {
+                        World world = worldEntry.getValue();
+                        equal = Objects.equals(world.getPrefix(), prefix);
+                        if (equal) world.setPrefix(null);
+                    }
+                } else {
+                    equal = Objects.equals(server.getPrefix(), prefix);
+                    if (equal) server.setPrefix(null);
+                }
+            }
+        }
+
+        return equal;
+    }
+
+    private boolean removeSuffixes(User user, CContext where, String suffix) {
+        boolean equal = false;
+        if (where.isGlobal()) {
+            equal = Objects.equals(user.getSuffix(), suffix);
+            if (equal) user.setSuffix(null);
+        } else if (where.isServerSensitive()) {
+            for (Map.Entry<String, Server> serverEntry : user.getServers().entrySet()) {
+                Server server = serverEntry.getValue();
+                if (where.isWorldSensitive()) {
+                    for (Map.Entry<String, World> worldEntry : server.getWorlds().entrySet()) {
+                        World world = worldEntry.getValue();
+                        equal = Objects.equals(world.getSuffix(), suffix);
+                        if (equal) world.setSuffix(null);
+                    }
+                } else {
+                    equal = Objects.equals(server.getSuffix(), suffix);
+                    if (equal) server.setSuffix(null);
+                }
+            }
+        }
+
+        return equal;
+    }
+
+    @Override
+    public CompletionStage<Boolean> removePrefix(UUID player, CContext where, String prefix) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                boolean result = removePrefixes(user, where, prefix);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removePrefix(String userName, CContext where, String prefix) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                boolean result = removePrefixes(user, where, prefix);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where) {
+        return setSuffix(player, where, null, 0);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeSuffix(String userName, CContext where) {
+        return setSuffix(userName, where, null, 0);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where, String suffix) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                boolean result = removeSuffixes(user, where, suffix);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeSuffix(String userName, CContext where, String suffix) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                boolean result = removeSuffixes(user, where, suffix);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
     }
 
 }

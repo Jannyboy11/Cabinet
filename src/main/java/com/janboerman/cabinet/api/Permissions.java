@@ -1,5 +1,7 @@
 package com.janboerman.cabinet.api;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 
@@ -7,34 +9,80 @@ import java.util.concurrent.CompletionStage;
 
 public interface Permissions {
 
+    static CPermission[] toCPermission(String... permission) {
+        return Arrays.stream(permission).map(CPermission::new).toArray(CPermission[]::new);
+    }
+
     public String getName();
     public boolean tryInitialise();
     public void onDisable();
 
     public boolean hasServerSupport();
     public boolean hasWorldSupport();
-    public boolean hasChatSupport();
+    public ChatSupport hasChatSupport();
 
-    //TODO varArgs all the things!
     public CompletionStage<Boolean> hasPermission(UUID player, String permission);
-    public CompletionStage<Boolean> hasPermission(String username, String permission);
-    public CompletionStage<Boolean> hasPermission(UUID player, CPermission permission);
-    public CompletionStage<Boolean> hasPermission(String username, CPermission permission);
+    public CompletionStage<Boolean> hasPermission(String userName, String permission);
+    public CompletionStage<Boolean> hasPermission(UUID player, CContext context, String permission);
+    public CompletionStage<Boolean> hasPermission(String userName, CContext context, String permission);
 
-    public CompletionStage<Boolean> addPermission(UUID player, String permission);
-    public CompletionStage<Boolean> addPermission(String username, String permission);
-    public CompletionStage<Boolean> addPermission(UUID player, CPermission permission);
-    public CompletionStage<Boolean> addPermission(String username, CPermission permission);
+    public default CompletionStage<Boolean> addPermission(UUID player, String... permission) {
+        return addPermission(player, CContext.global(), toCPermission(permission));
+    }
+    public default CompletionStage<Boolean> addPermission(String userName, String... permission) {
+        return addPermission(userName, CContext.global(), toCPermission(permission));
+    }
+    public CompletionStage<Boolean> addPermission(UUID player, CContext context, CPermission... permission);
+    public CompletionStage<Boolean> addPermission(String userName, CContext context, CPermission... permission);
 
-    public CompletionStage<Boolean> removePermission(UUID player, String permission);
-    public CompletionStage<Boolean> removePermission(String username, String permission);
-    public CompletionStage<Boolean> removePermission(UUID player, CPermission permission);
-    public CompletionStage<Boolean> removePermission(String username, CPermission permission);
+    public default CompletionStage<Boolean> removePermission(UUID player, String... permission) {
+        return removePermission(player, CContext.global(), toCPermission(permission));
+    }
+    public default CompletionStage<Boolean> removePermission(String userName, String... permission) {
+        return removePermission(userName, CContext.global(), toCPermission(permission));
+    }
+    public CompletionStage<Boolean> removePermission(UUID player, CContext context, CPermission... permission);
+    public CompletionStage<Boolean> removePermission(String userName, CContext context, CPermission... permission);
 
-    public CompletionStage<String> getPrefix(UUID player);
-    public CompletionStage<String> getPrefix(String username);
-    public CompletionStage<String> getSuffix(UUID player);
-    public CompletionStage<String> getSuffix(String username);
-    public CompletionStage<String> getDisplayName(UUID player);
-    public CompletionStage<String> getDisplayName(String username);
+
+    public CompletionStage<Optional<String>> getPrefixGlobal(UUID player);
+    public CompletionStage<Optional<String>> getPrefixGlobal(String username);
+    public CompletionStage<Optional<String>> getPrefixOnServer(UUID player, String server);
+    public CompletionStage<Optional<String>> getPrefixOnServer(String userName, String server);
+    public CompletionStage<Optional<String>> getPrefixOnWorld(UUID player, String server, String world);
+    public CompletionStage<Optional<String>> getPrefixOnWorld(String userName, String server, String world);
+
+    public CompletionStage<Optional<String>> getSuffixGlobal(UUID player);
+    public CompletionStage<Optional<String>> getSuffixGlobal(String userName);
+    public CompletionStage<Optional<String>> getSuffixOnServer(UUID player, String server);
+    public CompletionStage<Optional<String>> getSuffixOnServer(String userName, String server);
+    public CompletionStage<Optional<String>> getSuffixOnWorld(UUID player, String server, String world);
+    public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world);
+
+    public CompletionStage<Boolean> setPrefix(UUID player, CContext where, String prefix, int priority);
+    public CompletionStage<Boolean> setPrefix(String userName, CContext where, String prefix, int priority);
+    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String prefix, int priority);
+    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String prefix, int priority);
+
+    public CompletionStage<Boolean> removePrefix(UUID player, CContext where);
+    public CompletionStage<Boolean> removePrefix(String userName, CContext where);
+    public default CompletionStage<Boolean> removePrefix(UUID player, String prefix) {
+        return removePrefix(player, CContext.global(), prefix);
+    }
+    public default CompletionStage<Boolean> removePrefix(String userName, String prefix) {
+        return removePrefix(userName, CContext.global(), prefix);
+    }
+    public CompletionStage<Boolean> removePrefix(UUID player, CContext where, String prefix);
+    public CompletionStage<Boolean> removePrefix(String userName, CContext where, String prefix);
+
+    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where);
+    public CompletionStage<Boolean> removeSuffix(String userName, CContext where);
+    public default CompletionStage<Boolean> removeSuffix(UUID player, String suffix) {
+        return removePrefix(player, CContext.global(), suffix);
+    }
+    public default CompletionStage<Boolean> removeSuffix(String userName, String suffix) {
+        return removePrefix(userName, CContext.global(), suffix);
+    }
+    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where, String suffix);
+    public CompletionStage<Boolean> removeSuffix(String userName, CContext where, String suffix);
 }
