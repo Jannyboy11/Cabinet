@@ -15,6 +15,7 @@ import net.luckperms.api.model.user.User;
 import net.luckperms.api.model.user.UserManager;
 import net.luckperms.api.node.Node;
 import net.luckperms.api.node.NodeType;
+import net.luckperms.api.node.types.DisplayNameNode;
 import net.luckperms.api.node.types.PermissionNode;
 import net.luckperms.api.node.types.PrefixNode;
 import net.luckperms.api.node.types.SuffixNode;
@@ -202,6 +203,11 @@ public class LuckPermsPermissions extends PluginPermissions {
                 .filter(NodeType.SUFFIX::matches).findFirst().map(NodeType.SUFFIX::cast).map(SuffixNode::getMetaValue);
     }
 
+    static Optional<String> getDisplayName(PermissionHolder permissionHolder, QueryOptions queryOptions) {
+        return permissionHolder.resolveDistinctInheritedNodes(queryOptions).stream()
+                .filter(NodeType.DISPLAY_NAME::matches).findFirst().map(NodeType.DISPLAY_NAME::cast).map(DisplayNameNode::getDisplayName);
+    }
+
     @Override
     public CompletionStage<Optional<String>> getPrefixGlobal(UUID player) {
         return loadUser(player).thenApply(user -> getPrefix(user, QueryOptions.nonContextual()));
@@ -291,6 +297,50 @@ public class LuckPermsPermissions extends PluginPermissions {
                 .build()));
     }
 
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameGlobal(UUID player) {
+        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.nonContextual()));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameGlobal(String userName) {
+        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.nonContextual()));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnServer(UUID player, String server) {
+        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+                .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
+                .build()));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnServer(String userName, String server) {
+        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+                .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
+                .build()));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnWorld(UUID player, String server, String world) {
+        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+                .context(ImmutableContextSet.builder()
+                        .add(DefaultContextKeys.SERVER_KEY, server)
+                        .add(DefaultContextKeys.WORLD_KEY, world)
+                        .build())
+                .build()));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnWorld(String userName, String server, String world) {
+        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+                .context(ImmutableContextSet.builder()
+                        .add(DefaultContextKeys.SERVER_KEY, server)
+                        .add(DefaultContextKeys.WORLD_KEY, world)
+                        .build())
+                .build()));
+    }
+
     static ContextSet toContextSet(CContext context) {
         MutableContextSet mutableContextSet = MutableContextSet.create();
         if (context.isServerSensitive()) {
@@ -322,6 +372,17 @@ public class LuckPermsPermissions extends PluginPermissions {
         return userManager.saveUser(user).thenApply(unit -> result);
     }
 
+    CompletionStage<Boolean> setDisplayName(User user, CContext where, String displayName, int priority) {
+        //displayname priorities not supported by luckperms
+        DisplayNameNode.Builder builder = DisplayNameNode.builder(displayName);
+        ContextSet contextSet = toContextSet(where);
+        if (!contextSet.isEmpty()) {
+            builder = builder.context(contextSet);
+        }
+        boolean result = user.data().add(builder.build()).wasSuccessful();
+        return userManager.saveUser(user).thenApply(unit -> result);
+    }
+
     @Override
     public CompletionStage<Boolean> setPrefix(UUID player, CContext where, String prefix, int priority) {
         return loadUser(player).thenCompose(user -> setPrefix(user, where, prefix, priority));
@@ -333,13 +394,23 @@ public class LuckPermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String prefix, int priority) {
-        return loadUser(player).thenCompose(user -> setSuffix(user, where, prefix, priority));
+    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String suffix, int priority) {
+        return loadUser(player).thenCompose(user -> setSuffix(user, where, suffix, priority));
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String prefix, int priority) {
-        return loadUser(userName).thenCompose(user -> setSuffix(user, where, prefix, priority));
+    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String suffix, int priority) {
+        return loadUser(userName).thenCompose(user -> setSuffix(user, where, suffix, priority));
+    }
+
+    @Override
+    public CompletionStage<Boolean> setDisplayName(UUID player, CContext where, String displayName, int priority) {
+        return loadUser(player).thenCompose(user -> setDisplayName(user, where, displayName, priority));
+    }
+
+    @Override
+    public CompletionStage<Boolean> setDisplayName(String userName, CContext where, String displayName, int priority) {
+        return loadUser(userName).thenCompose(user -> setDisplayName(user, where, displayName, priority));
     }
 
     @Override
@@ -417,6 +488,48 @@ public class LuckPermsPermissions extends PluginPermissions {
     public CompletionStage<Boolean> removeSuffix(String userName, CContext where, String suffix) {
         return loadUser(userName).thenCompose(user -> {
             Predicate<Node> nodePredicate = node -> NodeType.SUFFIX.matches(node) && NodeType.SUFFIX.cast(node).getMetaValue().equals(suffix);
+            if (!where.isGlobal()) {
+                user.data().clear(nodePredicate);
+            } else {
+                user.data().clear(toContextSet(where), nodePredicate);
+            }
+            return userManager.saveUser(user).thenApply(unit -> true);
+        });
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where) {
+        return loadUser(player).thenCompose(user -> {
+            user.data().clear(toContextSet(where), NodeType.DISPLAY_NAME::matches);
+            return userManager.saveUser(user).thenApply(unit -> true);
+        });
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where) {
+        return loadUser(userName).thenCompose(user -> {
+            user.data().clear(toContextSet(where), NodeType.DISPLAY_NAME::matches);
+            return userManager.saveUser(user).thenApply(unit -> true);
+        });
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where, String displayName) {
+        return loadUser(player).thenCompose(user -> {
+            Predicate<Node> nodePredicate = node -> NodeType.DISPLAY_NAME.matches(node) && NodeType.DISPLAY_NAME.cast(node).getDisplayName().equals(displayName);
+            if (!where.isGlobal()) {
+                user.data().clear(nodePredicate);
+            } else {
+                user.data().clear(toContextSet(where), nodePredicate);
+            }
+            return userManager.saveUser(user).thenApply(unit -> true);
+        });
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where, String displayName) {
+        return loadUser(userName).thenCompose(user -> {
+            Predicate<Node> nodePredicate = node -> NodeType.DISPLAY_NAME.matches(node) && NodeType.DISPLAY_NAME.cast(node).getDisplayName().equals(displayName);
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {

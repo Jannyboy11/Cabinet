@@ -339,6 +339,36 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, world)), executor);
     }
 
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameGlobal(UUID player) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getDisplay()), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameGlobal(String userName) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getDisplay()), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnServer(UUID player, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getServer(server).getDisplay()), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnServer(String userName, String server) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getServer(server).getDisplay()), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnWorld(UUID player, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getServer(server).getWorld(world).getDisplay()), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayNameOnWorld(String userName, String server, String world) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getServer(server).getWorld(world).getDisplay()), executor);
+    }
+
     private boolean setPrefix(User user, CContext context, String prefix) {
         if (context.isGlobal()) {
             permissionsManager.setUserPrefix(user, prefix, null, null);
@@ -383,18 +413,18 @@ public class BungeePermsPermissions extends PluginPermissions {
         }, executor);
     }
 
-    private boolean setSuffix(User user, CContext context, String prefix) {
+    private boolean setSuffix(User user, CContext context, String suffix) {
         if (context.isGlobal()) {
-            permissionsManager.setUserSuffix(user, prefix, null, null);
+            permissionsManager.setUserSuffix(user, suffix, null, null);
             return true;
         } else if (context.isServerSensitive()) {
             for (String server : context.getServers()) {
                 if (context.isWorldSensitive()) {
                     for (String world : context.getWorlds()) {
-                        permissionsManager.setUserSuffix(user, prefix, server, world);
+                        permissionsManager.setUserSuffix(user, suffix, server, world);
                     }
                 } else {
-                    permissionsManager.setUserSuffix(user, prefix, server, null);
+                    permissionsManager.setUserSuffix(user, suffix, server, null);
                 }
             }
             return true;
@@ -404,11 +434,11 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String prefix, int priority) {
+    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String suffix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
-                return setSuffix(user, where, prefix);
+                return setSuffix(user, where, suffix);
             } else {
                 return false;
             }
@@ -416,11 +446,55 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String prefix, int priority) {
+    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String suffix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
-                return setSuffix(user, where, prefix);
+                return setSuffix(user, where, suffix);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    private boolean setDisplayName(User user, CContext context, String displayName) {
+        if (context.isGlobal()) {
+            permissionsManager.setUserDisplay(user, displayName, null, null);
+            return true;
+        } else if (context.isServerSensitive()) {
+            for (String server : context.getServers()) {
+                if (context.isWorldSensitive()) {
+                    for (String world : context.getWorlds()) {
+                        permissionsManager.setUserDisplay(user, displayName, server, world);
+                    }
+                } else {
+                    permissionsManager.setUserDisplay(user, displayName, server, null);
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public CompletionStage<Boolean> setDisplayName(UUID player, CContext where, String displayName, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                return setDisplayName(user, where, displayName);
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> setDisplayName(String userName, CContext where, String displayName, int priority) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                return setDisplayName(user, where, displayName);
             } else {
                 return false;
             }
@@ -478,6 +552,30 @@ public class BungeePermsPermissions extends PluginPermissions {
                 } else {
                     equal = Objects.equals(server.getSuffix(), suffix);
                     if (equal) server.setSuffix(null);
+                }
+            }
+        }
+
+        return equal;
+    }
+
+    private boolean removeDisplayNames(User user, CContext where, String displayName) {
+        boolean equal = false;
+        if (where.isGlobal()) {
+            equal = Objects.equals(user.getDisplay(), displayName);
+            if (equal) user.setDisplay(null);
+        } else if (where.isServerSensitive()) {
+            for (Map.Entry<String, Server> serverEntry : user.getServers().entrySet()) {
+                Server server = serverEntry.getValue();
+                if (where.isWorldSensitive()) {
+                    for (Map.Entry<String, World> worldEntry : server.getWorlds().entrySet()) {
+                        World world = worldEntry.getValue();
+                        equal = Objects.equals(world.getDisplay(), displayName);
+                        if (equal) world.setDisplay(null);
+                    }
+                } else {
+                    equal = Objects.equals(server.getDisplay(), displayName);
+                    if (equal) server.setDisplay(null);
                 }
             }
         }
@@ -543,6 +641,44 @@ public class BungeePermsPermissions extends PluginPermissions {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
                 boolean result = removeSuffixes(user, where, suffix);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where) {
+        return setDisplayName(player, where, null, 0);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where) {
+        return setDisplayName(userName, where, null, 0);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where, String displayName) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(player);
+            if (user != null) {
+                boolean result = removeDisplayNames(user, where, displayName);
+                saveUser(user);
+                return result;
+            } else {
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where, String displayName) {
+        return CompletableFuture.supplyAsync(() -> {
+            User user = permissionsManager.getUser(userName);
+            if (user != null) {
+                boolean result = removeDisplayNames(user, where, displayName);
                 saveUser(user);
                 return result;
             } else {
