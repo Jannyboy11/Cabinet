@@ -44,14 +44,17 @@ public interface Permissions {
     public CompletionStage<Boolean> removePermission(UUID player, CContext context, CPermission... permission);
     public CompletionStage<Boolean> removePermission(String userName, CContext context, CPermission... permission);
 
-
+    public CompletionStage<Optional<String>> getPrefix(UUID player);
+    public CompletionStage<Optional<String>> getPrefix(String userName);
     public CompletionStage<Optional<String>> getPrefixGlobal(UUID player);
-    public CompletionStage<Optional<String>> getPrefixGlobal(String username);
+    public CompletionStage<Optional<String>> getPrefixGlobal(String userName);
     public CompletionStage<Optional<String>> getPrefixOnServer(UUID player, String server);
     public CompletionStage<Optional<String>> getPrefixOnServer(String userName, String server);
     public CompletionStage<Optional<String>> getPrefixOnWorld(UUID player, String server, String world);
     public CompletionStage<Optional<String>> getPrefixOnWorld(String userName, String server, String world);
 
+    public CompletionStage<Optional<String>> getSuffix(UUID player);
+    public CompletionStage<Optional<String>> getSuffix(String userName);
     public CompletionStage<Optional<String>> getSuffixGlobal(UUID player);
     public CompletionStage<Optional<String>> getSuffixGlobal(String userName);
     public CompletionStage<Optional<String>> getSuffixOnServer(UUID player, String server);
@@ -59,6 +62,8 @@ public interface Permissions {
     public CompletionStage<Optional<String>> getSuffixOnWorld(UUID player, String server, String world);
     public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world);
 
+    public CompletionStage<Optional<String>> getDisplayName(UUID player);
+    public CompletionStage<Optional<String>> getDisplayName(String userName);
     public CompletionStage<Optional<String>> getDisplayNameGlobal(UUID player);
     public CompletionStage<Optional<String>> getDisplayNameGlobal(String userName);
     public CompletionStage<Optional<String>> getDisplayNameOnServer(UUID player, String server);

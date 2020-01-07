@@ -280,6 +280,16 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
+    public CompletionStage<Optional<String>> getPrefix(UUID player) {
+        return getPrefixGlobal(player);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getPrefix(String userName) {
+        return getPrefixGlobal(userName);
+    }
+
+    @Override
     public CompletionStage<Optional<String>> getPrefixGlobal(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), null, null)), executor);
     }
@@ -310,6 +320,16 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
+    public CompletionStage<Optional<String>> getSuffix(UUID player) {
+        return getSuffixGlobal(player);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffix(String userName) {
+        return getSuffixGlobal(userName);
+    }
+
+    @Override
     public CompletionStage<Optional<String>> getSuffixGlobal(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), null, null)), executor);
     }
@@ -337,6 +357,16 @@ public class BungeePermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, world)), executor);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayName(UUID player) {
+        return getDisplayNameGlobal(player);
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayName(String userName) {
+        return getDisplayNameGlobal(userName);
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.janboerman.cabinet.api.ChatSupport;
 import com.janboerman.cabinet.plugins.PluginPermissions;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.context.ContextManager;
 import net.luckperms.api.context.ContextSet;
 import net.luckperms.api.context.DefaultContextKeys;
 import net.luckperms.api.context.ImmutableContextSet;
@@ -27,12 +28,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 
-import static com.janboerman.cabinet.plugins.luckperms.LuckPermsHelper.*;
-
 public class LuckPermsPermissions extends PluginPermissions {
 
     private LuckPerms luckPerms;
     private UserManager userManager;
+    private ContextManager contextManager;
 
     public LuckPermsPermissions(ProxyServer proxyServer) {
         super("LuckPerms", proxyServer);
@@ -42,6 +42,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     public void initialise() {
         luckPerms = LuckPermsProvider.get();
         userManager = luckPerms.getUserManager();
+        contextManager = luckPerms.getContextManager();
     }
 
     @Override
@@ -126,33 +127,43 @@ public class LuckPermsPermissions extends PluginPermissions {
     }
 
     @Override
+    public CompletionStage<Optional<String>> getPrefix(UUID player) {
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getPrefix(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getPrefix(String userName) {
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getPrefix(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
     public CompletionStage<Optional<String>> getPrefixGlobal(UUID player) {
-        return loadUser(player).thenApply(user -> getPrefix(user, QueryOptions.nonContextual()));
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.nonContextual()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getPrefixGlobal(String username) {
-        return loadUser(username).thenApply(user -> getPrefix(user, QueryOptions.nonContextual()));
+        return loadUser(username).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.nonContextual()));
     }
 
 
     @Override
     public CompletionStage<Optional<String>> getPrefixOnServer(UUID player, String server) {
-        return loadUser(player).thenApply(user -> getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getPrefixOnServer(String userName, String server) {
-        return loadUser(userName).thenApply(user -> getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getPrefixOnWorld(UUID player, String server, String world) {
-        return loadUser(player).thenApply(user -> getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -162,7 +173,7 @@ public class LuckPermsPermissions extends PluginPermissions {
 
     @Override
     public CompletionStage<Optional<String>> getPrefixOnWorld(String userName, String server, String world) {
-        return loadUser(userName).thenApply(user -> getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getPrefix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -171,32 +182,42 @@ public class LuckPermsPermissions extends PluginPermissions {
     }
 
     @Override
+    public CompletionStage<Optional<String>> getSuffix(UUID player) {
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getSuffix(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getSuffix(String userName) {
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getSuffix(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
     public CompletionStage<Optional<String>> getSuffixGlobal(UUID player) {
-        return loadUser(player).thenApply(user -> getSuffix(user, QueryOptions.nonContextual()));
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.nonContextual()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getSuffixGlobal(String userName) {
-        return loadUser(userName).thenApply(user -> getSuffix(user, QueryOptions.nonContextual()));
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.nonContextual()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getSuffixOnServer(UUID player, String server) {
-        return loadUser(player).thenApply(user -> getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getSuffixOnServer(String userName, String server) {
-        return loadUser(userName).thenApply(user -> getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getSuffixOnWorld(UUID player, String server, String world) {
-        return loadUser(player).thenApply(user -> getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -206,7 +227,7 @@ public class LuckPermsPermissions extends PluginPermissions {
 
     @Override
     public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world) {
-        return loadUser(userName).thenApply(user -> getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getSuffix(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -215,32 +236,42 @@ public class LuckPermsPermissions extends PluginPermissions {
     }
 
     @Override
+    public CompletionStage<Optional<String>> getDisplayName(UUID player) {
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getDisplayName(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
+    public CompletionStage<Optional<String>> getDisplayName(String userName) {
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getDisplayName(user, contextManager.getQueryOptions(user).orElse(contextManager.getStaticQueryOptions())));
+    }
+
+    @Override
     public CompletionStage<Optional<String>> getDisplayNameGlobal(UUID player) {
-        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.nonContextual()));
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.nonContextual()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getDisplayNameGlobal(String userName) {
-        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.nonContextual()));
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.nonContextual()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getDisplayNameOnServer(UUID player, String server) {
-        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getDisplayNameOnServer(String userName, String server) {
-        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.of(DefaultContextKeys.SERVER_KEY, server))
                 .build()));
     }
 
     @Override
     public CompletionStage<Optional<String>> getDisplayNameOnWorld(UUID player, String server, String world) {
-        return loadUser(player).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(player).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -250,7 +281,7 @@ public class LuckPermsPermissions extends PluginPermissions {
 
     @Override
     public CompletionStage<Optional<String>> getDisplayNameOnWorld(String userName, String server, String world) {
-        return loadUser(userName).thenApply(user -> getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
+        return loadUser(userName).thenApply(user -> LuckPermsHelper.getDisplayName(user, QueryOptions.builder(QueryMode.CONTEXTUAL)
                 .context(ImmutableContextSet.builder()
                         .add(DefaultContextKeys.SERVER_KEY, server)
                         .add(DefaultContextKeys.WORLD_KEY, world)
@@ -260,7 +291,7 @@ public class LuckPermsPermissions extends PluginPermissions {
 
     private CompletionStage<Boolean> setPrefix(User user, CContext where, String prefix, int priority) {
         PrefixNode.Builder builder = PrefixNode.builder(prefix, priority);
-        ContextSet contextSet = toContextSet(where);
+        ContextSet contextSet = LuckPermsHelper.toContextSet(where);
         if (!contextSet.isEmpty()) {
             builder = builder.context(contextSet);
         }
@@ -270,7 +301,7 @@ public class LuckPermsPermissions extends PluginPermissions {
 
     private CompletionStage<Boolean> setSuffix(User user, CContext where, String suffix, int priority) {
         SuffixNode.Builder builder = SuffixNode.builder(suffix, priority);
-        ContextSet contextSet = toContextSet(where);
+        ContextSet contextSet = LuckPermsHelper.toContextSet(where);
         if (!contextSet.isEmpty()) {
             builder = builder.context(contextSet);
         }
@@ -281,7 +312,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     private CompletionStage<Boolean> setDisplayName(User user, CContext where, String displayName, int priority) {
         //displayname priorities not supported by luckperms
         DisplayNameNode.Builder builder = DisplayNameNode.builder(displayName);
-        ContextSet contextSet = toContextSet(where);
+        ContextSet contextSet = LuckPermsHelper.toContextSet(where);
         if (!contextSet.isEmpty()) {
             builder = builder.context(contextSet);
         }
@@ -322,7 +353,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removePrefix(UUID player, CContext where) {
         return loadUser(player).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.PREFIX::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.PREFIX::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -330,7 +361,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removePrefix(String userName, CContext where) {
         return loadUser(userName).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.PREFIX::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.PREFIX::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -342,7 +373,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
@@ -355,7 +386,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
@@ -364,7 +395,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removeSuffix(UUID player, CContext where) {
         return loadUser(player).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.SUFFIX::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.SUFFIX::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -372,7 +403,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removeSuffix(String userName, CContext where) {
         return loadUser(userName).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.SUFFIX::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.SUFFIX::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -384,7 +415,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
@@ -397,7 +428,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
@@ -406,7 +437,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where) {
         return loadUser(player).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.DISPLAY_NAME::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.DISPLAY_NAME::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -414,7 +445,7 @@ public class LuckPermsPermissions extends PluginPermissions {
     @Override
     public CompletionStage<Boolean> removeDisplayName(String userName, CContext where) {
         return loadUser(userName).thenCompose(user -> {
-            user.data().clear(toContextSet(where), NodeType.DISPLAY_NAME::matches);
+            user.data().clear(LuckPermsHelper.toContextSet(where), NodeType.DISPLAY_NAME::matches);
             return userManager.saveUser(user).thenApply(unit -> true);
         });
     }
@@ -426,7 +457,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
@@ -439,7 +470,7 @@ public class LuckPermsPermissions extends PluginPermissions {
             if (!where.isGlobal()) {
                 user.data().clear(nodePredicate);
             } else {
-                user.data().clear(toContextSet(where), nodePredicate);
+                user.data().clear(LuckPermsHelper.toContextSet(where), nodePredicate);
             }
             return userManager.saveUser(user).thenApply(unit -> true);
         });
