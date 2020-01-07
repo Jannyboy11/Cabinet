@@ -17,7 +17,7 @@ public abstract class PluginPermissions implements Permissions {
     private final String name;
     protected final ProxyServer proxyServer;
 
-    public PluginPermissions(String name, ProxyServer proxyServer) {
+    protected PluginPermissions(String name, ProxyServer proxyServer) {
         this.name = Objects.requireNonNull(name, "name cannot be null");
         this.proxyServer = Objects.requireNonNull(proxyServer, "proxy cannot be null");
     }

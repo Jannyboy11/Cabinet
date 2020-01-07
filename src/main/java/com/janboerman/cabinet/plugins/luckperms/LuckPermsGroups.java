@@ -25,6 +25,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.janboerman.cabinet.plugins.luckperms.LuckPermsHelper.*;
+
 public class LuckPermsGroups extends PluginGroups {
 
     private LuckPerms luckPerms;
@@ -148,7 +150,7 @@ public class LuckPermsGroups extends PluginGroups {
 
     Set<String> getGroups(User user, CContext context, boolean includeAncestors) {
         Stream<Node> nodes;
-        ContextSet contextSet = context.isGlobal() ? contextManager.getStaticContext() : LuckPermsPermissions.toContextSet(context);
+        ContextSet contextSet = context.isGlobal() ? contextManager.getStaticContext() : toContextSet(context);
         if (!includeAncestors) {
             nodes = user.getNodes().stream()
                     .filter(node -> contextSet.isSatisfiedBy(node.getContexts()));
@@ -202,8 +204,7 @@ public class LuckPermsGroups extends PluginGroups {
         String prefix = null;
         String suffix = null;
 
-        //TODO instead of picking the highest priority values, concatenate all prefixes, suffixes and display names?
-        //TODO need to check with a running LuckPerms install :)
+        //TODO inheritance?!
         for (Node node : group.getDistinctNodes()) {
             if (displayName == null && NodeType.DISPLAY_NAME.matches(node)) {
                 DisplayNameNode dnn = NodeType.DISPLAY_NAME.cast(node);
@@ -216,6 +217,8 @@ public class LuckPermsGroups extends PluginGroups {
                 suffix = sn.getMetaValue();
             }
             if (prefix != null && suffix != null && displayName != null) break;
+            //TODO instead of picking the highest priority values, concatenate all prefixes, suffixes and display names?
+            //TODO need to check with a running LuckPerms install :)
         }
 
         return new CGroup(name, weight, displayName, prefix, suffix);
@@ -240,7 +243,7 @@ public class LuckPermsGroups extends PluginGroups {
                 Group group = maybeGroup.get();
                 boolean result = true;
                 for (String permission : permissions) {
-                    result &= LuckPermsPermissions.hasPermission(group, permission, context);
+                    result &= LuckPermsHelper.hasPermission(group, permission, context);
                 }
                 return result;
             } else {
@@ -256,7 +259,7 @@ public class LuckPermsGroups extends PluginGroups {
                 Group group = optionalGroup.get();
                 boolean result = true;
                 for (CPermission permission : permissions) {
-                    result &= LuckPermsPermissions.removePermission(group, context, permission);
+                    result &= LuckPermsHelper.removePermission(group, context, permission);
                 }
                 boolean finalResult = result;
                 return groupManager.saveGroup(group).thenApply(unit -> finalResult);
@@ -273,7 +276,7 @@ public class LuckPermsGroups extends PluginGroups {
                 Group group = optionalGroup.get();
                 boolean result = true;
                 for (CPermission permission : permissions) {
-                    result &= LuckPermsPermissions.addPermission(group, context, permission);
+                    result &= LuckPermsHelper.addPermission(group, context, permission);
                 }
                 boolean finalResult = result;
                 return groupManager.saveGroup(group).thenApply(unit -> finalResult);

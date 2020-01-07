@@ -7,11 +7,14 @@ import com.janboerman.cabinet.plugins.bungeeperms.BungeePermsPermissions;
 import com.janboerman.cabinet.plugins.luckperms.LuckPermsGroups;
 import com.janboerman.cabinet.plugins.luckperms.LuckPermsPermissions;
 import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.api.plugin.PluginManager;
+import net.md_5.bungee.event.EventHandler;
 
 import java.util.*;
 
-public class CabinetPlugin extends Plugin {
+public class CabinetPlugin extends Plugin implements Listener {
 
     private final Map<String, Permissions> permissionProviders = new LinkedHashMap<>();
     private final Map<String, Groups> groupsProviders = new LinkedHashMap<>();
@@ -19,18 +22,21 @@ public class CabinetPlugin extends Plugin {
     @Override
     public void onEnable() {
         ProxyServer proxyServer = getProxy();
+        PluginManager pluginManager = proxyServer.getPluginManager();
 
-        //LuckPerms
-        LuckPermsPermissions luckPermsPermissions = new LuckPermsPermissions(proxyServer);
-        LuckPermsGroups luckPermsGroups = new LuckPermsGroups(proxyServer, luckPermsPermissions);
-        registerPermissionProvider(luckPermsPermissions);
-        registerGroupProvider(luckPermsGroups);
+        if (pluginManager.getPlugin("LuckPerms") != null) {
+            LuckPermsPermissions luckPermsPermissions = new LuckPermsPermissions(proxyServer);
+            LuckPermsGroups luckPermsGroups = new LuckPermsGroups(proxyServer, luckPermsPermissions);
+            registerPermissionProvider(luckPermsPermissions);
+            registerGroupProvider(luckPermsGroups);
+        }
 
-        //BungeePerms
-        BungeePermsPermissions bungeePermsPermissions = new BungeePermsPermissions(proxyServer);
-        BungeePermsGroups bungeePermsGroups = new BungeePermsGroups(proxyServer);
-        registerPermissionProvider(bungeePermsPermissions);
-        registerGroupProvider(bungeePermsGroups);
+        if (pluginManager.getPlugin("BungeePerms") != null) {
+            BungeePermsPermissions bungeePermsPermissions = new BungeePermsPermissions(proxyServer);
+            BungeePermsGroups bungeePermsGroups = new BungeePermsGroups(proxyServer);
+            registerPermissionProvider(bungeePermsPermissions);
+            registerGroupProvider(bungeePermsGroups);
+        }
     }
 
     @Override
