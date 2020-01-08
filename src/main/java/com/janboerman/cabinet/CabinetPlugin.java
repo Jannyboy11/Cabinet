@@ -7,36 +7,50 @@ import com.janboerman.cabinet.plugins.bungeeperms.BungeePermsPermissions;
 import com.janboerman.cabinet.plugins.luckperms.LuckPermsGroups;
 import com.janboerman.cabinet.plugins.luckperms.LuckPermsPermissions;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.api.plugin.PluginManager;
-import net.md_5.bungee.event.EventHandler;
 
 import java.util.*;
 
-public class CabinetPlugin extends Plugin implements Listener {
+//TODO support RedisBungee? What about players who are on a different proxy?
+
+public class CabinetPlugin extends Plugin {
 
     private final Map<String, Permissions> permissionProviders = new LinkedHashMap<>();
     private final Map<String, Groups> groupsProviders = new LinkedHashMap<>();
 
     @Override
     public void onEnable() {
-        ProxyServer proxyServer = getProxy();
-        PluginManager pluginManager = proxyServer.getPluginManager();
+        boolean success = tryHookLuckPerms();
+        if (!success) success = tryHookBungeePerms();
+        //TODO more bungeecord permission plugin hooks
 
-        if (pluginManager.getPlugin("LuckPerms") != null) {
+        //ideally I would call these hook methods again if one of the plugins enables,
+        //but bungeecord does not have a PluginEnableEvent. It should not ever be a problem though because
+        //Cabinet soft-depends on LuckPerms and BungeePerms.
+    }
+
+    public boolean tryHookLuckPerms() {
+        ProxyServer proxyServer = getProxy();
+        boolean doesHook = proxyServer.getPluginManager().getPlugin("LuckPerms") != null;
+        if (doesHook) {
             LuckPermsPermissions luckPermsPermissions = new LuckPermsPermissions(proxyServer);
             LuckPermsGroups luckPermsGroups = new LuckPermsGroups(proxyServer, luckPermsPermissions);
             registerPermissionProvider(luckPermsPermissions);
             registerGroupProvider(luckPermsGroups);
         }
+        return doesHook;
+    }
 
-        if (pluginManager.getPlugin("BungeePerms") != null) {
+    public boolean tryHookBungeePerms() {
+        ProxyServer proxyServer = getProxy();
+        boolean doesHook = proxyServer.getPluginManager().getPlugin("BungeePerms") != null;
+        if (doesHook) {
             BungeePermsPermissions bungeePermsPermissions = new BungeePermsPermissions(proxyServer);
             BungeePermsGroups bungeePermsGroups = new BungeePermsGroups(proxyServer);
             registerPermissionProvider(bungeePermsPermissions);
             registerGroupProvider(bungeePermsGroups);
         }
+        return doesHook;
     }
 
     @Override
@@ -50,7 +64,7 @@ public class CabinetPlugin extends Plugin implements Listener {
     public boolean registerPermissionProvider(Permissions provider) {
         boolean result = provider.tryInitialise() && permissionProviders.putIfAbsent(provider.getName(), Objects.requireNonNull(provider, "Permissions provider cannot be null!")) == null;
         if (result) {
-            getLogger().info("Registered permissions provider: " + provider.getName());
+            getLogger().info("Registered Permissions provider: " + provider.getName());
         }
         return result;
     }

@@ -60,4 +60,6 @@ public interface Groups {
     public CompletableFuture<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions);
     public CompletableFuture<Boolean> groupHasPermission(String groupName, CContext context, String... permissions);
 
+    //TODO [add/remove/get]ParentGroups
+
 }
