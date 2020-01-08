@@ -278,12 +278,12 @@ public class BungeePermsPermissions extends PluginPermissions {
 
     @Override
     public CompletableFuture<Optional<String>> getPrefix(UUID player) {
-        return getPrefixGlobal(player);
+        return getPrefixOnServer(player, "");
     }
 
     @Override
     public CompletableFuture<Optional<String>> getPrefix(String userName) {
-        return getPrefixGlobal(userName);
+        return getPrefixOnServer(userName, "");
     }
 
     @Override
@@ -318,12 +318,12 @@ public class BungeePermsPermissions extends PluginPermissions {
 
     @Override
     public CompletableFuture<Optional<String>> getSuffix(UUID player) {
-        return getSuffixGlobal(player);
+        return getSuffixOnServer(player, "");
     }
 
     @Override
     public CompletableFuture<Optional<String>> getSuffix(String userName) {
-        return getSuffixGlobal(userName);
+        return getSuffixOnServer(userName, "");
     }
 
     @Override
@@ -358,12 +358,12 @@ public class BungeePermsPermissions extends PluginPermissions {
 
     @Override
     public CompletableFuture<Optional<String>> getDisplayName(UUID player) {
-        return getDisplayNameGlobal(player);
+        return getDisplayNameOnServer(player, "");
     }
 
     @Override
     public CompletableFuture<Optional<String>> getDisplayName(String userName) {
-        return getDisplayNameGlobal(userName);
+        return getDisplayNameOnServer(userName, "");
     }
 
     @Override
