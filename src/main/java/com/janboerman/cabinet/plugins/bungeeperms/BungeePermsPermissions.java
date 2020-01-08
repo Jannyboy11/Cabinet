@@ -2,17 +2,14 @@ package com.janboerman.cabinet.plugins.bungeeperms;
 
 import com.janboerman.cabinet.api.CContext;
 import com.janboerman.cabinet.api.CPermission;
-import com.janboerman.cabinet.api.ChatSupport;
 import com.janboerman.cabinet.plugins.PluginPermissions;
 import com.janboerman.cabinet.util.Executors;
 import net.alpenblock.bungeeperms.*;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.plugin.Plugin;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
 public class BungeePermsPermissions extends PluginPermissions {
@@ -49,8 +46,8 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public ChatSupport hasChatSupport() {
-        return ChatSupport.READ_WRITE;
+    public boolean hasChatSupport() {
+        return true;
     }
 
     @Override
@@ -58,7 +55,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(UUID player, String permission) {
+    public CompletableFuture<Boolean> hasPermission(UUID player, String permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.hasPermission(permission));
 
@@ -66,7 +63,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(String username, String permission) {
+    public CompletableFuture<Boolean> hasPermission(String username, String permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.hasPermission(permission));
 
@@ -74,7 +71,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(UUID player, CContext context, String permission) {
+    public CompletableFuture<Boolean> hasPermission(UUID player, CContext context, String permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (context.isServerSensitive()) {
@@ -96,7 +93,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> hasPermission(String username, CContext context, String permission) {
+    public CompletableFuture<Boolean> hasPermission(String username, CContext context, String permission) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             if (context.isServerSensitive()) {
@@ -118,7 +115,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(UUID player, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> addPermission(UUID player, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -160,7 +157,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> addPermission(String username, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> addPermission(String username, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -202,7 +199,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(UUID player, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> removePermission(UUID player, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -241,7 +238,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePermission(String username, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> removePermission(String username, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -280,122 +277,122 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefix(UUID player) {
+    public CompletableFuture<Optional<String>> getPrefix(UUID player) {
         return getPrefixGlobal(player);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefix(String userName) {
+    public CompletableFuture<Optional<String>> getPrefix(String userName) {
         return getPrefixGlobal(userName);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixGlobal(UUID player) {
+    public CompletableFuture<Optional<String>> getPrefixGlobal(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), null, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixGlobal(String userName) {
+    public CompletableFuture<Optional<String>> getPrefixGlobal(String userName) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, null, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixOnServer(UUID player, String server) {
+    public CompletableFuture<Optional<String>> getPrefixOnServer(UUID player, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), server, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixOnServer(String userName, String server) {
+    public CompletableFuture<Optional<String>> getPrefixOnServer(String userName, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, server, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixOnWorld(UUID player, String server, String world) {
+    public CompletableFuture<Optional<String>> getPrefixOnWorld(UUID player, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(player.toString(), server, world)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrefixOnWorld(String userName, String server, String world) {
+    public CompletableFuture<Optional<String>> getPrefixOnWorld(String userName, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userPrefix(userName, server, world)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffix(UUID player) {
+    public CompletableFuture<Optional<String>> getSuffix(UUID player) {
         return getSuffixGlobal(player);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffix(String userName) {
+    public CompletableFuture<Optional<String>> getSuffix(String userName) {
         return getSuffixGlobal(userName);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixGlobal(UUID player) {
+    public CompletableFuture<Optional<String>> getSuffixGlobal(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), null, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixGlobal(String userName) {
+    public CompletableFuture<Optional<String>> getSuffixGlobal(String userName) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, null, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixOnServer(UUID player, String server) {
+    public CompletableFuture<Optional<String>> getSuffixOnServer(UUID player, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), server, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixOnServer(String userName, String server) {
+    public CompletableFuture<Optional<String>> getSuffixOnServer(String userName, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, null)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixOnWorld(UUID player, String server, String world) {
+    public CompletableFuture<Optional<String>> getSuffixOnWorld(UUID player, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(player.toString(), server, world)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getSuffixOnWorld(String userName, String server, String world) {
+    public CompletableFuture<Optional<String>> getSuffixOnWorld(String userName, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userSuffix(userName, server, world)), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayName(UUID player) {
+    public CompletableFuture<Optional<String>> getDisplayName(UUID player) {
         return getDisplayNameGlobal(player);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayName(String userName) {
+    public CompletableFuture<Optional<String>> getDisplayName(String userName) {
         return getDisplayNameGlobal(userName);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameGlobal(UUID player) {
+    public CompletableFuture<Optional<String>> getDisplayNameGlobal(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getDisplay()), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameGlobal(String userName) {
+    public CompletableFuture<Optional<String>> getDisplayNameGlobal(String userName) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getDisplay()), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameOnServer(UUID player, String server) {
+    public CompletableFuture<Optional<String>> getDisplayNameOnServer(UUID player, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getServer(server).getDisplay()), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameOnServer(String userName, String server) {
+    public CompletableFuture<Optional<String>> getDisplayNameOnServer(String userName, String server) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getServer(server).getDisplay()), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameOnWorld(UUID player, String server, String world) {
+    public CompletableFuture<Optional<String>> getDisplayNameOnWorld(UUID player, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(player).getServer(server).getWorld(world).getDisplay()), executor);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getDisplayNameOnWorld(String userName, String server, String world) {
+    public CompletableFuture<Optional<String>> getDisplayNameOnWorld(String userName, String server, String world) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(permissionsManager.getUser(userName).getServer(server).getWorld(world).getDisplay()), executor);
     }
 
@@ -420,7 +417,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setPrefix(UUID player, CContext where, String prefix, int priority) {
+    public CompletableFuture<Boolean> setPrefix(UUID player, CContext where, String prefix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -432,7 +429,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setPrefix(String userName, CContext where, String prefix, int priority) {
+    public CompletableFuture<Boolean> setPrefix(String userName, CContext where, String prefix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
@@ -464,7 +461,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(UUID player, CContext where, String suffix, int priority) {
+    public CompletableFuture<Boolean> setSuffix(UUID player, CContext where, String suffix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -476,7 +473,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setSuffix(String userName, CContext where, String suffix, int priority) {
+    public CompletableFuture<Boolean> setSuffix(String userName, CContext where, String suffix, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
@@ -508,7 +505,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setDisplayName(UUID player, CContext where, String displayName, int priority) {
+    public CompletableFuture<Boolean> setDisplayName(UUID player, CContext where, String displayName, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -520,7 +517,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> setDisplayName(String userName, CContext where, String displayName, int priority) {
+    public CompletableFuture<Boolean> setDisplayName(String userName, CContext where, String displayName, int priority) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
@@ -532,12 +529,12 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePrefix(UUID player, CContext where) {
+    public CompletableFuture<Boolean> removePrefix(UUID player, CContext where) {
         return setPrefix(player, where, null, 0);
     }
 
     @Override
-    public CompletionStage<Boolean> removePrefix(String userName, CContext where) {
+    public CompletableFuture<Boolean> removePrefix(String userName, CContext where) {
         return setPrefix(userName, where, null, 0);
     }
 
@@ -614,7 +611,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePrefix(UUID player, CContext where, String prefix) {
+    public CompletableFuture<Boolean> removePrefix(UUID player, CContext where, String prefix) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -628,7 +625,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removePrefix(String userName, CContext where, String prefix) {
+    public CompletableFuture<Boolean> removePrefix(String userName, CContext where, String prefix) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
@@ -642,17 +639,17 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where) {
+    public CompletableFuture<Boolean> removeSuffix(UUID player, CContext where) {
         return setSuffix(player, where, null, 0);
     }
 
     @Override
-    public CompletionStage<Boolean> removeSuffix(String userName, CContext where) {
+    public CompletableFuture<Boolean> removeSuffix(String userName, CContext where) {
         return setSuffix(userName, where, null, 0);
     }
 
     @Override
-    public CompletionStage<Boolean> removeSuffix(UUID player, CContext where, String suffix) {
+    public CompletableFuture<Boolean> removeSuffix(UUID player, CContext where, String suffix) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -666,7 +663,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removeSuffix(String userName, CContext where, String suffix) {
+    public CompletableFuture<Boolean> removeSuffix(String userName, CContext where, String suffix) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
@@ -680,17 +677,17 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where) {
+    public CompletableFuture<Boolean> removeDisplayName(UUID player, CContext where) {
         return setDisplayName(player, where, null, 0);
     }
 
     @Override
-    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where) {
+    public CompletableFuture<Boolean> removeDisplayName(String userName, CContext where) {
         return setDisplayName(userName, where, null, 0);
     }
 
     @Override
-    public CompletionStage<Boolean> removeDisplayName(UUID player, CContext where, String displayName) {
+    public CompletableFuture<Boolean> removeDisplayName(UUID player, CContext where, String displayName) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
@@ -704,7 +701,7 @@ public class BungeePermsPermissions extends PluginPermissions {
     }
 
     @Override
-    public CompletionStage<Boolean> removeDisplayName(String userName, CContext where, String displayName) {
+    public CompletableFuture<Boolean> removeDisplayName(String userName, CContext where, String displayName) {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {

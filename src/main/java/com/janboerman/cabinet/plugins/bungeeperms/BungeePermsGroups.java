@@ -3,21 +3,14 @@ package com.janboerman.cabinet.plugins.bungeeperms;
 import com.janboerman.cabinet.api.CContext;
 import com.janboerman.cabinet.api.CGroup;
 import com.janboerman.cabinet.api.CPermission;
-import com.janboerman.cabinet.api.Groups;
 import com.janboerman.cabinet.plugins.PluginGroups;
 import com.janboerman.cabinet.util.Executors;
 import net.alpenblock.bungeeperms.*;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.plugin.Plugin;
-
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class BungeePermsGroups extends PluginGroups {
@@ -53,17 +46,17 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(UUID player, String groupName) {
+    public CompletableFuture<Boolean> isMember(UUID player, String groupName) {
         return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userInGroup(player.toString(), groupName), executor);
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(String username, String groupName) {
+    public CompletableFuture<Boolean> isMember(String username, String groupName) {
         return CompletableFuture.supplyAsync(() -> BungeePermsAPI.userInGroup(username, groupName), executor);
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(UUID player, CContext context, String groupName) {
+    public CompletableFuture<Boolean> isMember(UUID player, CContext context, String groupName) {
         if (context.isGlobal()) {
             return isMember(player, groupName);
         } else {
@@ -73,7 +66,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(String username, CContext context, String groupName) {
+    public CompletableFuture<Boolean> isMember(String username, CContext context, String groupName) {
         if (context.isGlobal()) {
             return isMember(username, groupName);
         } else {
@@ -83,13 +76,13 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrimaryGroup(UUID player) {
+    public CompletableFuture<Optional<String>> getPrimaryGroup(UUID player) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userMainGroup(player.toString())), executor);
         //return CompletableFuture.supplyAsync(() -> permissionsManager.getUser(player, true), executor).thenApply(BungeePermsGroups::getPrimaryGroup);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrimaryGroup(String username) {
+    public CompletableFuture<Optional<String>> getPrimaryGroup(String username) {
         return CompletableFuture.supplyAsync(() -> Optional.ofNullable(BungeePermsAPI.userMainGroup(username)), executor);
         //return CompletableFuture.supplyAsync(() -> permissionsManager.getUser(username, true), executor).thenApply(BungeePermsGroups::getPrimaryGroup);
     }
@@ -114,8 +107,8 @@ public class BungeePermsGroups extends PluginGroups {
 //    }
 
     @Override
-    public CompletionStage<Boolean> addMember(UUID player, String... groupNames) {
-        CompletionStage<Boolean> result = CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> addMember(UUID player, String... groupNames) {
+        CompletableFuture<Boolean> result = CompletableFuture.completedFuture(true);
         for (String groupName : groupNames) {
             result = result.thenCompose(acc -> CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAddGroup(player.toString(), groupName), executor).thenApply(b -> b && acc));
         }
@@ -123,8 +116,8 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> addMember(String username, String... groupNames) {
-        CompletionStage<Boolean> result = CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> addMember(String username, String... groupNames) {
+        CompletableFuture<Boolean> result = CompletableFuture.completedFuture(true);
         for (String groupName : groupNames) {
             result = result.thenCompose(acc -> CompletableFuture.supplyAsync(() -> BungeePermsAPI.userAddGroup(username, groupName), executor).thenApply(b -> b && acc));
         }
@@ -139,7 +132,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(UUID player, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(UUID player, boolean includeParentGroups) {
         return CompletableFuture.supplyAsync(() -> {
             List<String> directGroups = BungeePermsAPI.userAllGroups(player.toString());
             if (includeParentGroups) {
@@ -153,7 +146,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(String username, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(String username, boolean includeParentGroups) {
         return CompletableFuture.supplyAsync(() -> {
             List<String> directGroups = BungeePermsAPI.userAllGroups(username);
             if (includeParentGroups) {
@@ -167,7 +160,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(UUID player, CContext context, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(UUID player, CContext context, boolean includeParentGroups) {
         if (context.isGlobal()) {
             return getGroups(player, includeParentGroups);
         } else {
@@ -176,7 +169,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(String username, CContext context, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(String username, CContext context, boolean includeParentGroups) {
         if (context.isGlobal()) {
             return getGroups(username, includeParentGroups);
         } else {
@@ -185,7 +178,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Optional<CGroup>> getGroup(String groupName) {
+    public CompletableFuture<Optional<CGroup>> getGroup(String groupName) {
         return CompletableFuture.supplyAsync(() -> {
             Group group = permissionsManager.getGroup(groupName);
             if (group == null) {
@@ -206,7 +199,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<CGroup> createOrUpdateGroup(CGroup group) {
+    public CompletableFuture<CGroup> createOrUpdateGroup(CGroup group) {
         return CompletableFuture.supplyAsync(() -> {
             Consumer<Group> consumer = bpGroup -> {
                 bpGroup.setWeight(group.getWeight().orElse(0));
@@ -244,7 +237,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> removeGroup(String groupName) {
+    public CompletableFuture<Boolean> removeGroup(String groupName) {
         return CompletableFuture.supplyAsync(() -> {
             Group group = permissionsManager.getGroup(groupName);
             if (group == null) {
@@ -257,7 +250,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupAddPermission(String groupName, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> groupAddPermission(String groupName, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -299,7 +292,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = true;
             for (CPermission permission : permissions) {
@@ -338,7 +331,7 @@ public class BungeePermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupHasPermission(String groupName, CContext context, String... permissions) {
+    public CompletableFuture<Boolean> groupHasPermission(String groupName, CContext context, String... permissions) {
         return CompletableFuture.supplyAsync(() -> {
             boolean result = false;
             for (String permission : permissions) {

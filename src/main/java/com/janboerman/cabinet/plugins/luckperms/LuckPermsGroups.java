@@ -21,7 +21,6 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -63,7 +62,7 @@ public class LuckPermsGroups extends PluginGroups {
         return true;
     }
 
-    CompletionStage<Optional<Group>> loadGroup(String groupName) {
+    CompletableFuture<Optional<Group>> loadGroup(String groupName) {
         Group group = groupManager.getGroup(groupName);
         return group == null
                 ? CompletableFuture.completedFuture(Optional.of(group))
@@ -71,7 +70,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(UUID player, String groupName) {
+    public CompletableFuture<Boolean> isMember(UUID player, String groupName) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.hasPermission("group." + groupName));
 
@@ -79,7 +78,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(String username, String groupName) {
+    public CompletableFuture<Boolean> isMember(String username, String groupName) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().contains(groupName));
 
@@ -87,17 +86,17 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(UUID player, CContext context, String groupName) {
+    public CompletableFuture<Boolean> isMember(UUID player, CContext context, String groupName) {
         return luckPermsPermissions.hasPermission(player, context, "group." + groupName);
     }
 
     @Override
-    public CompletionStage<Boolean> isMember(String username, CContext context, String groupName) {
+    public CompletableFuture<Boolean> isMember(String username, CContext context, String groupName) {
         return luckPermsPermissions.hasPermission(username, context, "group." + groupName);
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrimaryGroup(UUID player) {
+    public CompletableFuture<Optional<String>> getPrimaryGroup(UUID player) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().stream().findFirst());
 
@@ -105,7 +104,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Optional<String>> getPrimaryGroup(String username) {
+    public CompletableFuture<Optional<String>> getPrimaryGroup(String username) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(username);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.getGroups().stream().findFirst());
 
@@ -113,7 +112,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> addMember(UUID player, String... groupNames) {
+    public CompletableFuture<Boolean> addMember(UUID player, String... groupNames) {
         return luckPermsPermissions.loadUser(player).thenCompose(user -> {
             boolean result = true;
             for (String groupName : groupNames) {
@@ -126,7 +125,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> addMember(String userName, String... groupNames) {
+    public CompletableFuture<Boolean> addMember(String userName, String... groupNames) {
         return luckPermsPermissions.loadUser(userName).thenCompose(user -> {
             boolean result = true;
             for (String groupName : groupNames) {
@@ -139,12 +138,12 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(UUID player, CContext context, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(UUID player, CContext context, boolean includeParentGroups) {
         return luckPermsPermissions.loadUser(player).thenApply(user -> getGroups(user, context, includeParentGroups));
     }
 
     @Override
-    public CompletionStage<Collection<String>> getGroups(String username, CContext context, boolean includeParentGroups) {
+    public CompletableFuture<Collection<String>> getGroups(String username, CContext context, boolean includeParentGroups) {
         return luckPermsPermissions.loadUser(username).thenApply(user -> getGroups(user, context, includeParentGroups));
     }
 
@@ -164,13 +163,13 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Optional<CGroup>> getGroup(String groupName) {
+    public CompletableFuture<Optional<CGroup>> getGroup(String groupName) {
         return loadGroup(groupName).thenApply(optionalGroup -> optionalGroup.map(LuckPermsGroups::toCGroup));
     }
 
     @Override
-    public CompletionStage<CGroup> createOrUpdateGroup(CGroup cGroup) {
-        CompletionStage<Group> luckPermsGroup = groupManager.createAndLoadGroup(cGroup.getName());
+    public CompletableFuture<CGroup> createOrUpdateGroup(CGroup cGroup) {
+        CompletableFuture<Group> luckPermsGroup = groupManager.createAndLoadGroup(cGroup.getName());
 
         return luckPermsGroup.thenApply(group -> {
             OptionalInt weight = cGroup.getWeight();
@@ -225,7 +224,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> removeGroup(String groupName) {
+    public CompletableFuture<Boolean> removeGroup(String groupName) {
         return loadGroup(groupName).thenCompose(optionalGroup -> {
             if (optionalGroup.isPresent()) {
                 Group group = optionalGroup.get();
@@ -237,7 +236,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupHasPermission(String groupName, CContext context, String... permissions) {
+    public CompletableFuture<Boolean> groupHasPermission(String groupName, CContext context, String... permissions) {
         return loadGroup(groupName).thenApply(maybeGroup -> {
             if (maybeGroup.isPresent()) {
                 Group group = maybeGroup.get();
@@ -253,7 +252,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> groupRemovePermission(String groupName, CContext context, CPermission... permissions) {
         return loadGroup(groupName).thenCompose(optionalGroup -> {
             if (optionalGroup.isPresent()) {
                 Group group = optionalGroup.get();
@@ -270,7 +269,7 @@ public class LuckPermsGroups extends PluginGroups {
     }
 
     @Override
-    public CompletionStage<Boolean> groupAddPermission(String groupName, CContext context, CPermission... permissions) {
+    public CompletableFuture<Boolean> groupAddPermission(String groupName, CContext context, CPermission... permissions) {
         return loadGroup(groupName).thenCompose(optionalGroup -> {
             if (optionalGroup.isPresent()) {
                 Group group = optionalGroup.get();

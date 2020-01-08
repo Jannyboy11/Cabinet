@@ -9,7 +9,6 @@ import net.md_5.bungee.api.plugin.Plugin;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 public abstract class PluginPermissions implements Permissions {
 
@@ -48,14 +47,14 @@ public abstract class PluginPermissions implements Permissions {
         return name + "Permissions";
     }
 
-    public CompletionStage<Boolean> hasPermission(UUID player, String permission) {
+    public CompletableFuture<Boolean> hasPermission(UUID player, String permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(player);
         if (player != null) return CompletableFuture.completedFuture(proxiedPlayer.hasPermission(permission));
 
         return hasPermission(player, CContext.global(), permission);
     }
 
-    public CompletionStage<Boolean> hasPermission(String userName, String permission) {
+    public CompletableFuture<Boolean> hasPermission(String userName, String permission) {
         ProxiedPlayer proxiedPlayer = proxyServer.getPlayer(userName);
         if (proxiedPlayer != null) return CompletableFuture.completedFuture(proxiedPlayer.hasPermission(permission));
 
