@@ -421,7 +421,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
-                return setPrefix(user, where, prefix);
+                boolean result = setPrefix(user, where, prefix);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
@@ -433,7 +435,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
-                return setPrefix(user, where, prefix);
+                boolean result = setPrefix(user, where, prefix);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
@@ -465,7 +469,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
-                return setSuffix(user, where, suffix);
+                boolean result = setSuffix(user, where, suffix);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
@@ -477,7 +483,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
-                return setSuffix(user, where, suffix);
+                boolean result = setSuffix(user, where, suffix);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
@@ -509,7 +517,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(player);
             if (user != null) {
-                return setDisplayName(user, where, displayName);
+                boolean result = setDisplayName(user, where, displayName);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
@@ -521,7 +531,9 @@ public class BungeePermsPermissions extends PluginPermissions {
         return CompletableFuture.supplyAsync(() -> {
             User user = permissionsManager.getUser(userName);
             if (user != null) {
-                return setDisplayName(user, where, displayName);
+                boolean result = setDisplayName(user, where, displayName);
+                saveUser(user);
+                return result;
             } else {
                 return false;
             }
